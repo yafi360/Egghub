@@ -300,11 +300,11 @@ end)
 -- An expanded overlay preserves the V4 hub's compact navigation.
 local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(1,0),
   Position=UDim2.new(1,-56,0,100),Size=UDim2.fromOffset(490,510),
-  BackgroundColor3=P.deep,BorderSizePixel=0,Visible=false,ZIndex=15})
+  BackgroundColor3=Color3.fromRGB(31,35,58),BorderSizePixel=0,Visible=false,ZIndex=15})
 round(finder,17)
-line(finder,P.cyan,2)
+line(finder,Color3.fromRGB(167,170,216),3)
 ui("UIScale",finder,{Scale=.76})
-local titleBar=ui("Frame",finder,{Size=UDim2.new(1,0,0,42),BackgroundColor3=Color3.fromRGB(167,32,45),BorderSizePixel=0,ZIndex=16})
+local titleBar=ui("Frame",finder,{Size=UDim2.new(1,0,0,42),BackgroundColor3=Color3.fromRGB(61,64,100),BorderSizePixel=0,ZIndex=16})
 round(titleBar,16)
 txt(titleBar,"STEAL PANEL  /  YAFI",17,6,360,29,20,P.text,true).ZIndex=17
 -- Red edge arrow: open panel when collapsed, hide when expanded.
@@ -338,7 +338,7 @@ ui("UIPadding",minIncome,{PaddingLeft=UDim.new(0,9)})
 local refreshBtn=btn(finder,"↻",424,119,50,35,P.blue)
 refreshBtn.ZIndex=16
 local list=ui("ScrollingFrame",finder,{Position=UDim2.fromOffset(15,164),
-  Size=UDim2.fromOffset(460,328),BackgroundColor3=P.navy,
+  Size=UDim2.fromOffset(460,328),BackgroundColor3=Color3.fromRGB(33,36,61),
   BorderSizePixel=0,ScrollBarThickness=5,CanvasSize=UDim2.fromOffset(0,0),
   ZIndex=16})
 round(list,10)
@@ -755,29 +755,40 @@ local function renderFinder()
       and (minimum==0 or (value and value>=minimum)) then
       shown=shown+1
       local row=ui("Frame",list,{
-        Size=UDim2.new(1,-7,0,54),BackgroundColor3=shown%2==0 and P.panel or P.deep,
+        Size=UDim2.new(1,-8,0,78),
+        BackgroundColor3=shown%2==0 and Color3.fromRGB(72,75,100) or Color3.fromRGB(63,67,94),
         BorderSizePixel=0,LayoutOrder=shown,ZIndex=17})
       round(row,7)
-      ui("ImageLabel",row,{
-        Position=UDim2.fromOffset(5,4),Size=UDim2.fromOffset(46,46),
+      line(row,Color3.fromRGB(173,177,208),1.7)
+      local iconBack=ui("Frame",row,{Position=UDim2.fromOffset(4,5),
+        Size=UDim2.fromOffset(67,67),BackgroundColor3=Color3.fromRGB(123,127,164),
+        BorderSizePixel=0,ZIndex=18})
+      round(iconBack,6)
+      grad(iconBack,Color3.fromRGB(209,210,235),Color3.fromRGB(72,79,124),45)
+      ui("ImageLabel",iconBack,{
+        Position=UDim2.fromOffset(4,4),Size=UDim2.fromOffset(59,59),
         BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,
-        Image=iconId(egg.icon),ZIndex=18})
-      ui("TextLabel",row,{
-        Position=UDim2.fromOffset(59,0),Size=UDim2.new(1,-156,1,0),
-        BackgroundTransparency=1,TextColor3=P.text,TextWrapped=true,
-        RichText=true,TextXAlignment=Enum.TextXAlignment.Left,
-        Font=Enum.Font.GothamBlack,TextSize=17,ZIndex=18,
-        Text=string.format("<b>%d.</b> %s | %s <b>%s</b>\n%s | Size <b>%.2fx</b>",
-          shown,'<font color="'..rarityHex(egg.rarity)..'"><b>'..richSafe(egg.name)..'</b></font>',egg.income and "EST." or "BASE",
-          money(value),richSafe(egg.mutation),egg.scale)
-      })
-      local locate=btn(row,"STEAL",362,10,84,34,Color3.fromRGB(37,174,67))
+        Image=iconId(egg.icon),ZIndex=19})
+      local label=txt(row,egg.name,78,6,245,26,18,
+        Color3.fromRGB(255,100,88),true)
+      label.ZIndex=19
+      label.Font=Enum.Font.GothamBlack
+      local earnings=txt(row,(egg.income and "EST. " or "BASE ")..money(value).."/s",
+        78,30,245,23,18,Color3.fromRGB(85,255,84),true)
+      earnings.Font=Enum.Font.GothamBlack
+      earnings.ZIndex=19
+      local info=txt(row,string.format("x%.2f  •  %s",egg.scale,tostring(egg.mutation)),
+        78,54,240,19,13,
+        normalize(egg.mutation):find("halloween",1,true) and Color3.fromRGB(255,164,56) or Color3.fromRGB(91,199,255),true)
+      info.ZIndex=19
+      local locate=btn(row,"STEAL",333,15,109,46,Color3.fromRGB(46,233,20))
       locate.ZIndex=20
+      line(locate,Color3.fromRGB(19,112,30),2)
       if egg.raw and egg.raw.State and egg.raw.State~="Slot" then
         locate.Text=tostring(egg.raw.State):upper()
-        locate.BackgroundColor3=P.panel
+        locate.BackgroundColor3=Color3.fromRGB(97,101,127)
       end
-      locate.TextSize=13
+      locate.TextSize=18
       locate.Font=Enum.Font.GothamBlack
       local function triggerSteal()
         if _G.YafiPickupBusy then
@@ -1040,7 +1051,7 @@ local function renderFinder()
       locate.MouseButton1Click:Connect(triggerSteal)
     end
   end
-  list.CanvasSize=UDim2.fromOffset(0,shown*58+6)
+  list.CanvasSize=UDim2.fromOffset(0,shown*82+6)
   countLabel.Text=lastStatus.." | Showing "..shown
 end
 local running=false

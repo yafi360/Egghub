@@ -113,6 +113,35 @@ txt(home,"READY TO EXPLORE",34,179,245,23,12,P.green,true)
 
 -- EGG FINDER: restored from EggFinder_V6.lua (current-server snapshot)
 local RS=game:GetService("ReplicatedStorage")
+
+local assets,mutationModule
+pcall(function() assets=require(RS.Data.Assets).Directory end)
+pcall(function() mutationModule=require(RS.Shared.Modules.Mutations) end)
+local function iconId(v)
+ if type(v)=="table" then v=v.Image or v.ImageId or v.AssetId or v.Id end
+ if type(v)=="number" then return "rbxassetid://"..v end
+ if type(v)=="string" then
+  if v:match("^%d+$") then return "rbxassetid://"..v end
+  if v:match("^rbxassetid://") or v:match("^rbxasset://") then return v end
+ end
+ return ""
+end
+local function earned(e,base)
+ if not base or not mutationModule or type(mutationModule.EarningsFor)~="function" then return nil end
+ local names={}
+ if e.BaseMutation and e.BaseMutation~="None" then table.insert(names,tostring(e.BaseMutation)) end
+ if type(e.Mutations)=="table" then
+  for _,m in pairs(e.Mutations) do if type(m)=="string" then table.insert(names,m) end end
+ end
+ local ok,m=pcall(mutationModule.EarningsFor,names)
+ if ok and type(m)=="number" and m>0 then
+  return base*math.max(tonumber(e.AssetScale) or 1,0)^1.85*m
+ end
+end
+local function richSafe(s)
+ return tostring(s or ""):gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;")
+end
+
 local database,dbCount={},0
 local function normalize(s)
   return tostring(s or ""):lower():gsub("[^%w]","")
@@ -125,10 +154,10 @@ local function incomeNum(s)
 end
 local function money(n)
   if not n then return "Unknown base" end
-  if n>=1e12 then return string.format("$%.2fT/s",n/1e12) end
-  if n>=1e9 then return string.format("$%.2fB/s",n/1e9) end
-  if n>=1e6 then return string.format("$%.2fM/s",n/1e6) end
-  if n>=1e3 then return string.format("$%.2fK/s",n/1e3) end
+  if n>=1e12 then return string.format("$%.1fT/s",n/1e12) end
+  if n>=1e9 then return string.format("$%.1fB/s",n/1e9) end
+  if n>=1e6 then return string.format("$%.1fM/s",n/1e6) end
+  if n>=1e3 then return string.format("$%.1fK/s",n/1e3) end
   return string.format("$%.0f/s",n)
 end
 local function clean(s)
@@ -198,24 +227,35 @@ local remote
 local latest={}
 local lastStatus=""
 local function renderFinder()
+
   for _,v in ipairs(list:GetChildren()) do
-    if v:IsA("TextLabel") then v:Destroy() end
+    if v:IsA("Frame") then v:Destroy() end
   end
   local query=normalize(petSearch.Text)
   local minimum=incomeNum(minIncome.Text) or tonumber(minIncome.Text) or 0
   local shown=0
   for _,egg in ipairs(latest) do
+    local value=egg.income or egg.base
     if (query=="" or normalize(egg.name):find(query,1,true))
-      and (not egg.base or egg.base>=minimum) then
+      and (minimum==0 or (value and value>=minimum)) then
       shown=shown+1
-      local row=ui("TextLabel",list,{
+      local row=ui("Frame",list,{
         Size=UDim2.new(1,-7,0,54),BackgroundColor3=shown%2==0 and P.panel or P.deep,
-        BorderSizePixel=0,Font=Enum.Font.GothamMedium,TextSize=13,
-        TextColor3=P.text,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,
-        Text=string.format("  %d. %s   •   %s\n  BASE %s   |   SIZE %.2fx",
-           shown,egg.name,egg.mutation,money(egg.base),egg.scale),
-        LayoutOrder=shown,ZIndex=17})
+        BorderSizePixel=0,LayoutOrder=shown,ZIndex=17})
       round(row,7)
+      ui("ImageLabel",row,{
+        Position=UDim2.fromOffset(5,4),Size=UDim2.fromOffset(46,46),
+        BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,
+        Image=iconId(egg.icon),ZIndex=18})
+      ui("TextLabel",row,{
+        Position=UDim2.fromOffset(59,0),Size=UDim2.new(1,-65,1,0),
+        BackgroundTransparency=1,TextColor3=P.text,TextWrapped=true,
+        RichText=true,TextXAlignment=Enum.TextXAlignment.Left,
+        Font=Enum.Font.GothamMedium,TextSize=13,ZIndex=18,
+        Text=string.format("%d. %s | %s <b>%s</b>\n%s | Size <b>%.2fx</b>",
+          shown,richSafe(egg.name),egg.income and "EST." or "BASE",
+          money(value),richSafe(egg.mutation),egg.scale)
+      })
     end
   end
   list.CanvasSize=UDim2.fromOffset(0,shown*58+6)
@@ -247,17 +287,22 @@ local function refreshFinder()
   for _,egg in pairs(result.Records) do
     if type(egg)=="table" then
       local name=tostring(egg.AssetCategory or "Unknown")
+      local def=type(assets)=="table" and assets[name] or nil
+      local gameBase=type(def)=="table" and tonumber(def.EarningRate) or nil
       table.insert(eggs,{name=name,mutation=tostring(egg.BaseMutation or "None"),
-        scale=tonumber(egg.AssetScale) or 1,base=database[normalize(name)]})
+        scale=tonumber(egg.AssetScale) or 1,base=gameBase or database[normalize(name)],
+        income=earned(egg,gameBase),icon=type(def)=="table" and def.Icon or nil})
     end
   end
   table.sort(eggs,function(a,b)
-    if (a.base or -1)~=(b.base or -1) then return (a.base or -1)>(b.base or -1) end
+    if (a.income or a.base or -1)~=(b.income or b.base or -1) then
+      return (a.income or a.base or -1)>(b.income or b.base or -1)
+    end
     if a.scale~=b.scale then return a.scale>b.scale end
     return a.name<b.name
   end)
   latest=eggs
-  lastStatus=string.format("%d eggs • %d values",#eggs,dbCount)
+  lastStatus=string.format("%d eggs | estimates where available",#eggs)
   renderFinder()
   running=false
 end

@@ -8,6 +8,8 @@ if not player then return end
 local parent = player:WaitForChild("PlayerGui")
 local previous = parent:FindFirstChild("YafiEggHub")
 if previous then previous:Destroy() end
+-- Reset stale state from a previous execution.
+_G.YafiPickupBusy=false
 
 local P = {
   deep=Color3.fromRGB(9,19,44), navy=Color3.fromRGB(16,31,65),
@@ -360,6 +362,7 @@ local function renderFinder()
           return
         end
         _G.YafiPickupBusy=true
+        local thisGui=gui
         task.spawn(function()
           local ok,err=pcall(function()
             local character=player.Character
@@ -437,7 +440,7 @@ local function renderFinder()
           if not ok and gui.Parent then
             countLabel.Text="Test error: "..tostring(err):sub(1,75)
           end
-          _G.YafiPickupBusy=false
+          if thisGui==gui then _G.YafiPickupBusy=false end
         end)
       end)
     end

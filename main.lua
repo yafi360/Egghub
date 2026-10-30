@@ -283,31 +283,64 @@ local function renderFinder()
       locate.TextSize=13
       locate.Font=Enum.Font.GothamBlack
       locate.MouseButton1Click:Connect(function()
-        local target
-        local myRoot=player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        countLabel.Text="Searching for "..egg.name.."..."
+        local target,part,prompt
         local best=math.huge
+        local root=player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         for _,obj in ipairs(workspace:GetDescendants()) do
-          if obj:IsA("Model") and normalize(obj.Name)==normalize(egg.name) then
-            local part=obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)
-            if part then
-              local distance=myRoot and (myRoot.Position-part.Position).Magnitude or 0
-              if distance<best then best=distance target=obj end
+          if obj:IsA("Model") then
+            local matches=normalize(obj.Name)==normalize(egg.name)
+            if not matches then
+              local ok,value=pcall(function() return obj:GetAttribute("AssetCategory") end)
+              matches=ok and normalize(value)==normalize(egg.name)
+            end
+            if matches then
+              local p=obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)
+              if p then
+                local distance=root and (root.Position-p.Position).Magnitude or 0
+                if distance<best then
+                  best=distance
+                  target=obj
+                  part=p
+                  prompt=obj:FindFirstChildWhichIsA("ProximityPrompt",true)
+                end
+              end
             end
           end
         end
         local old=workspace:FindFirstChild("YafiPetLocateHighlight")
         if old then old:Destroy() end
-        if target then
-          local h=Instance.new("Highlight")
-          h.Name="YafiPetLocateHighlight"
-          h.FillColor=P.cyan
-          h.OutlineColor=P.blue
-          h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
-          h.Adornee=target
-          h.Parent=workspace
-          countLabel.Text="Target selected: "..egg.name.." | pickup is manual"
+        if not target then
+          countLabel.Text="Can't locate "..egg.name.." in world; no steal attempted"
+          return
+        end
+        local h=Instance.new("Highlight")
+        h.Name="YafiPetLocateHighlight"
+        h.FillColor=P.cyan
+        h.OutlineColor=P.blue
+        h.Adornee=target
+        h.Parent=workspace
+        if not root then
+          countLabel.Text="Found "..egg.name..", but character isn't ready"
+          return
+        end
+        -- Experimental attempt: approach a matching egg and use its normal prompt.
+        local ok,err=pcall(function()
+          root.CFrame=part.CFrame*CFrame.new(0,3,5)
+        end)
+        if not ok then
+          countLabel.Text="Couldn't approach target: "..tostring(err):sub(1,45)
+          return
+        end
+        if prompt then
+          prompt.Enabled=true
+          countLabel.Text="Near "..egg.name.." — use pickup prompt"
+          if type(fireproximityprompt)=="function" then
+            local fired=pcall(function() fireproximityprompt(prompt) end)
+            countLabel.Text=fired and "Pickup requested for "..egg.name.." (verify in game)" or "Prompt available — press interact"
+          end
         else
-          countLabel.Text="Target not found in world: "..egg.name
+          countLabel.Text="At "..egg.name.." — no pickup prompt found"
         end
       end)
     end

@@ -739,6 +739,136 @@ local function inspectHalloween()
 end
 halloweenScan.MouseButton1Click:Connect(inspectHalloween)
 
+-- EXPERIMENTAL HALLOWEEN AUTOMATION. Uses equipped Tools, not guessed remotes.
+-- Fishing minigame actions may require a game-specific handler.
+local autoFish=false
+local autoMonster=false
+local fishThread=0
+local monsterThread=0
+local fishStatus=txt(halloweenView,"Fishing: OFF",11,99,214,18,11,P.muted)
+fishStatus.ZIndex=39
+local monsterStatus=txt(halloweenView,"Monsters: OFF",235,99,212,18,11,P.muted)
+monsterStatus.ZIndex=39
+local fishToggle=btn(halloweenView,"AUTO FISH: OFF",10,65,215,32,P.panel)
+fishToggle.ZIndex=40
+local monsterToggle=btn(halloweenView,"AUTO MONSTER: OFF",234,65,214,32,P.panel)
+monsterToggle.ZIndex=40
+-- Reuse inspection controls lower in the panel for space.
+halloweenScan.Position=UDim2.fromOffset(10,122)
+halloweenScan.Size=UDim2.fromOffset(211,30)
+halloweenBack.Position=UDim2.fromOffset(235,122)
+halloweenBack.Size=UDim2.fromOffset(212,30)
+halloweenList.Position=UDim2.fromOffset(10,161)
+halloweenList.Size=UDim2.fromOffset(438,155)
+local function findTool(patterns)
+ local char=player.Character
+ local backpack=player:FindFirstChildOfClass("Backpack")
+ for _,container in ipairs({char,backpack}) do
+  if container then
+   for _,item in ipairs(container:GetChildren()) do
+    if item:IsA("Tool") then
+     local label=item.Name:lower()
+     for _,fragment in ipairs(patterns) do
+      if label:find(fragment,1,true) then return item end
+     end
+    end
+   end
+  end
+ end
+end
+local function equipTool(item)
+ local char=player.Character
+ local hum=char and char:FindFirstChildOfClass("Humanoid")
+ if not hum or not item then return false end
+ if item.Parent~=char then hum:EquipTool(item) task.wait(.2) end
+ return item.Parent==char
+end
+local function nearbyMonster()
+ local char=player.Character
+ local root=char and char:FindFirstChild("HumanoidRootPart")
+ if not root then return nil,nil end
+ local best,bestDist
+ for _,obj in ipairs(workspace:GetDescendants()) do
+  if obj:IsA("Model") and obj~=char and not Players:GetPlayerFromCharacter(obj) then
+   local hum=obj:FindFirstChildOfClass("Humanoid")
+   local part=obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart
+   if hum and hum.Health>0 and part and (obj.Name:lower():find("monster",1,true)
+     or obj.Name:lower():find("ghost",1,true) or obj.Name:lower():find("zombie",1,true)
+     or obj.Name:lower():find("skeleton",1,true) or obj.Name:lower():find("ghoul",1,true)
+     or obj.Name:lower():find("werewolf",1,true)) then
+    local dist=(root.Position-part.Position).Magnitude
+    if dist<70 and (not bestDist or dist<bestDist) then
+     best,bestDist=part,dist
+    end
+   end
+  end
+ end
+ return best,bestDist
+end
+fishToggle.MouseButton1Click:Connect(function()
+ autoFish=not autoFish
+ fishThread=fishThread+1
+ local ticket=fishThread
+ if autoFish then autoMonster=false monsterThread=monsterThread+1 end
+ monsterToggle.Text="AUTO MONSTER: OFF"
+ fishToggle.Text=autoFish and "AUTO FISH: ON" or "AUTO FISH: OFF"
+ fishToggle.BackgroundColor3=autoFish and Color3.fromRGB(31,145,79) or P.panel
+ if not autoFish then fishStatus.Text="Fishing: stopped" return end
+ task.spawn(function()
+  while autoFish and ticket==fishThread and gui.Parent do
+   if _G.YafiPickupBusy then
+    fishStatus.Text="Fishing paused: stealing egg"
+   else
+    local tool=findTool({"fishing rod","haunted rod","rod","fishing"})
+    if not tool then
+     fishStatus.Text="Fishing: equip/unlock a rod"
+    elseif equipTool(tool) then
+     local ok=pcall(function() tool:Activate() end)
+     fishStatus.Text=ok and "Fishing: cast attempt (reel unverified)" or "Fishing: activation failed"
+    end
+   end
+   task.wait(5)
+  end
+ end)
+end)
+monsterToggle.MouseButton1Click:Connect(function()
+ autoMonster=not autoMonster
+ monsterThread=monsterThread+1
+ local ticket=monsterThread
+ if autoMonster then autoFish=false fishThread=fishThread+1 end
+ fishToggle.Text="AUTO FISH: OFF"
+ monsterToggle.Text=autoMonster and "AUTO MONSTER: ON" or "AUTO MONSTER: OFF"
+ monsterToggle.BackgroundColor3=autoMonster and Color3.fromRGB(31,145,79) or P.panel
+ if not autoMonster then monsterStatus.Text="Monsters: stopped" return end
+ task.spawn(function()
+  while autoMonster and ticket==monsterThread and gui.Parent do
+   if _G.YafiPickupBusy then
+    monsterStatus.Text="Monsters paused: stealing egg"
+   else
+    local tool=findTool({"bat","sword","weapon","club"})
+    local target,distance=nearbyMonster()
+    if not tool then
+     monsterStatus.Text="Monsters: equip a bat"
+    elseif not target then
+     monsterStatus.Text="Monsters: no nearby named mobs"
+    elseif equipTool(tool) then
+     local char=player.Character
+     local hum=char and char:FindFirstChildOfClass("Humanoid")
+     if distance and distance>9 and hum then
+      hum:MoveTo(target.Position)
+      monsterStatus.Text="Monsters: approaching target"
+     else
+      pcall(function() tool:Activate() end)
+      monsterStatus.Text="Monsters: attack attempt"
+     end
+    end
+   end
+   task.wait(.65)
+  end
+ end)
+end)
+
+
 -- Carry state is authoritative when this game version publishes the event.
 local carryObserved=false
 local carryingNow=nil

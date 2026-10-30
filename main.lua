@@ -142,13 +142,17 @@ local rarityColors={
  common="#BFC9D9", uncommon="#74E88E", rare="#52B9FF",
  epic="#B98AFF", legendary="#FFD45D", mythic="#FF6FAE",
  mythical="#FF6FAE", divine="#FFDB66", secret="#FF555F",
- celestial="#82F8FF", exclusive="#FFB477"
+ celestial="#82F8FF", exclusive="#FFB477",
+ cosmic="#54E8FF", eternal="#FF8A3D", brainrot="#FF82D6",
+ monster="#A4F45C", event="#FFCB60"
 }
 local function rarityHex(rarity)
  if typeof(rarity)=="Color3" then
   return string.format("#%02X%02X%02X",math.floor(rarity.R*255+.5),math.floor(rarity.G*255+.5),math.floor(rarity.B*255+.5))
  end
  local key=tostring(rarity or ""):lower():gsub("<[^>]*>",""):gsub("[^%a]","")
+ -- Prefer exact tier; avoid matching "rare" inside a longer word.
+ if rarityColors[key] then return rarityColors[key] end
  for word,color in pairs(rarityColors) do
   if key:find(word,1,true) then return color end
  end
@@ -342,7 +346,7 @@ local function refreshFinder()
       table.insert(eggs,{name=name,mutation=tostring(egg.BaseMutation or "None"),
         scale=tonumber(egg.AssetScale) or 1,base=gameBase or database[normalize(name)],
         income=earned(egg,gameBase),icon=type(def)=="table" and def.Icon or nil,
-        rarity=(type(def)=="table" and (def.RarityColor or def.Rarity or def.Tier or def.RarityName)) or egg.Rarity or egg.Tier or databaseRarity[normalize(name)]})
+        rarity=(type(def)=="table" and (def.Rarity or def.Tier or def.RarityName)) or databaseRarity[normalize(name)] or egg.Rarity or egg.Tier})
     end
   end
   table.sort(eggs,function(a,b)

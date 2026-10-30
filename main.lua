@@ -274,9 +274,7 @@ local function renderFinder()
           shown,'<font color="'..rarityHex(egg.rarity)..'"><b>'..richSafe(egg.name)..'</b></font>',egg.income and "EST." or "BASE",
           money(value),richSafe(egg.mutation),egg.scale)
       })
-    end
-  end
-      local locate=btn(row,"LOCATE",359,10,85,33,P.blue)
+      local locate=btn(row,"LOCATE",358,10,86,34,P.blue)
       locate.ZIndex=20
       locate.TextSize=11
       locate.MouseButton1Click:Connect(function()
@@ -307,6 +305,8 @@ local function renderFinder()
           countLabel.Text="No matching world model found for "..egg.name
         end
       end)
+    end
+  end
   list.CanvasSize=UDim2.fromOffset(0,shown*58+6)
   countLabel.Text=lastStatus.." | Showing "..shown
 end

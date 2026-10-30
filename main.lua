@@ -615,6 +615,15 @@ local function renderHalloweenCatalog()
   local steal=btn(row,valid and "STEAL" or "NOT HERE",333,10,94,37,
     valid and Color3.fromRGB(37,174,67) or P.panel)
   steal.ZIndex=39
+  -- Unavailable entries must consume UI clicks without triggering gameplay input.
+  steal.Active=true
+  steal.Selectable=false
+  if not valid then
+   steal.AutoButtonColor=false
+   steal.MouseButton1Click:Connect(function()
+    halloweenInfo.Text="Index entry only: no live Halloween egg ID or position"
+   end)
+  end
   if valid then
    steal.MouseButton1Click:Connect(function()
     petSearch.Text=egg.name

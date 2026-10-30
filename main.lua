@@ -215,14 +215,28 @@ txt(tools,"Current server • ranked by base $/s",17,40,270,20,11,P.muted)
 local finderButton=btn(tools,"OPEN EGG FINDER",16,81,274,42,P.blue)
 txt(tools,"Refreshes every 5 seconds when open.",17,137,274,22,11,P.muted)
 
+-- Compact launcher above the game's egg menu (right-side HUD).
+local eggLauncher=btn(gui,"🥚",0,0,49,49,P.blue)
+eggLauncher.Name="EggFinderLauncher"
+eggLauncher.AnchorPoint=Vector2.new(1,0.5)
+eggLauncher.Position=UDim2.new(1,-94,0.34,0)
+eggLauncher.Size=UDim2.fromOffset(49,49)
+eggLauncher.TextSize=25
+eggLauncher.ZIndex=30
+line(eggLauncher,P.cyan,2)
+local launcherBadge=txt(eggLauncher,"Y",35,31,12,15,10,P.text,true)
+launcherBadge.ZIndex=31
+
 -- An expanded overlay preserves the V4 hub's compact navigation.
 local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(1,0),
   Position=UDim2.new(1,-12,0,47),Size=UDim2.fromOffset(490,440),
   BackgroundColor3=P.deep,BorderSizePixel=0,Visible=false,ZIndex=15})
 round(finder,17)
 line(finder,P.cyan,2)
-txt(finder,"EGG FINDER  /  LIVE SERVER",17,11,395,29,17,P.text,true).ZIndex=16
-local finderClose=btn(finder,"X",447,12,30,29,Color3.fromRGB(85,43,76))
+local titleBar=ui("Frame",finder,{Size=UDim2.new(1,0,0,42),BackgroundColor3=Color3.fromRGB(167,32,45),BorderSizePixel=0,ZIndex=16})
+round(titleBar,16)
+txt(titleBar,"STEAL PANEL  /  YAFI",17,6,360,29,20,P.text,true).ZIndex=17
+local finderClose=btn(finder,"X",447,7,30,29,Color3.fromRGB(85,43,76))
 finderClose.ZIndex=17
 local countLabel=txt(finder,"Loading...",17,46,460,22,12,P.cyan)
 countLabel.ZIndex=16
@@ -283,7 +297,7 @@ local function renderFinder()
           shown,'<font color="'..rarityHex(egg.rarity)..'"><b>'..richSafe(egg.name)..'</b></font>',egg.income and "EST." or "BASE",
           money(value),richSafe(egg.mutation),egg.scale)
       })
-      local locate=btn(row,"STEAL",362,10,84,34,P.blue)
+      local locate=btn(row,"STEAL",362,10,84,34,Color3.fromRGB(37,174,67))
       locate.ZIndex=20
       locate.TextSize=13
       locate.Font=Enum.Font.GothamBlack
@@ -507,9 +521,13 @@ local function refreshFinder()
   renderFinder()
   running=false
 end
-finderButton.MouseButton1Click:Connect(function()
+local function openFinder()
   finder.Visible=true
   task.spawn(refreshFinder)
+end
+finderButton.MouseButton1Click:Connect(openFinder)
+eggLauncher.MouseButton1Click:Connect(function()
+  if finder.Visible then finder.Visible=false else openFinder() end
 end)
 finderClose.MouseButton1Click:Connect(function() finder.Visible=false end)
 petSearch:GetPropertyChangedSignal("Text"):Connect(renderFinder)

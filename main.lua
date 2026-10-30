@@ -773,6 +773,10 @@ local function renderFinder()
       })
       local locate=btn(row,"STEAL",362,10,84,34,Color3.fromRGB(37,174,67))
       locate.ZIndex=20
+      if egg.raw and egg.raw.State and egg.raw.State~="Slot" then
+        locate.Text=tostring(egg.raw.State):upper()
+        locate.BackgroundColor3=P.panel
+      end
       locate.TextSize=13
       locate.Font=Enum.Font.GothamBlack
       local function triggerSteal()
@@ -788,7 +792,7 @@ local function renderFinder()
           return
         end
         -- Dropped eggs may be recoverable; let the server decide via carry remote.
-        if raw.State and raw.State~="Slot" and raw.State~="Dropped" then
+        if raw.State and raw.State~="Slot" then
           countLabel.Text="Egg state: "..tostring(raw.State).." (cannot pick up)"
           return
         end
@@ -884,7 +888,7 @@ local function renderFinder()
                   if type(rec)=="table" and tostring(rec.Uid)==tostring(uid) then
                     found=true
                     if typeof(rec.BottomCFrame)=="CFrame" then eggPos=rec.BottomCFrame.Position end
-                    if rec.State and rec.State~="Slot" and rec.State~="Dropped" then
+                    if rec.State and rec.State~="Slot" then
                       countLabel.Text="Egg now unavailable: "..tostring(rec.State)
                       return
                     end
@@ -903,6 +907,26 @@ local function renderFinder()
               local approached,why=walkTo(eggPos,3.5,os.clock()+50,"egg",false)
               if not approached then countLabel.Text="Could not reach egg: "..why return end
               if thisTrip~=tripSerial then return end
+              -- A selected egg may despawn or change state during the walk.
+              -- Do not submit an outdated UID to the carry endpoint.
+              if snapshotRemote and snapshotRemote:IsA("RemoteFunction") then
+                local latestOK,current=pcall(function() return snapshotRemote:InvokeServer() end)
+                if not latestOK or type(current)~="table" or type(current.Records)~="table" then
+                  countLabel.Text="Cannot verify egg before pickup; stopped"
+                  return
+                end
+                local validNow=false
+                for _,item in pairs(current.Records) do
+                  if type(item)=="table" and tostring(item.Uid)==tostring(uid) then
+                    validNow=(item.State==nil or item.State=="Slot")
+                    break
+                  end
+                end
+                if not validNow then
+                  countLabel.Text="Egg moved/disappeared or was dropped; refresh list"
+                  return
+                end
+              end
               local carryStart=os.clock()
               carryingNow=nil -- Ignore carry state left over from a previous trip.
               local success,accepted,reason=pcall(function() return carryRemote:InvokeServer({Uid=uid}) end)

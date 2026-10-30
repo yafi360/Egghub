@@ -374,91 +374,97 @@ local function renderFinder()
               countLabel.Text="Character not ready"
               return
             end
-            local destination=cf.Position
-            local limit=os.clock()+35
-            countLabel.Text="Walking to "..egg.name.." (current server)"
-            while gui.Parent and os.clock()<limit do
-              local dist=(root.Position-destination).Magnitude
-              if dist<=9 then break end
-              humanoid:MoveTo(destination)
-              task.wait(.45)
-              if humanoid.Health<=0 then
-                countLabel.Text="Character died; pickup cancelled"
-                return
-              end
-            end
-            local distance=(root.Position-destination).Magnitude
-            if distance>9 then
-              countLabel.Text=string.format("Could not reach %s (%.0f studs away)",egg.name,distance)
-              return
-            end
             local carryRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggCarry",true)
+            local snapshotRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggSnapshot",true)
             if not carryRemote or not carryRemote:IsA("RemoteFunction") then
-              countLabel.Text="Carry request unavailable"
+              countLabel.Text="Pickup remote unavailable"
               return
             end
-            countLabel.Text="Near "..egg.name.."; requesting pickup..."
-            local sent,response,reason=pcall(function()
-              return carryRemote:InvokeServer({Uid=uid})
-            end)
-            if not gui.Parent then return end
-            if not sent then
-              countLabel.Text="Pickup error: "..tostring(response):sub(1,65)
-            elseif response==false or response==nil then
-              countLabel.Text="Server rejected pickup: "..tostring(reason or "conditions not met"):sub(1,45)
-            else
-              countLabel.Text="Egg picked up — finding your base..."
-              local plots=workspace:FindFirstChild("Plots")
-              local ownPlot
-              local stateRemote=RS:FindFirstChild("RF/Homestead/AskState",true)
-              if plots and stateRemote and stateRemote:IsA("RemoteFunction") then
-                local stateOK,state=pcall(function() return stateRemote:InvokeServer() end)
-                if stateOK and type(state)=="table" and type(state.OwnersBySlot)=="table" then
-                  for slot,owner in pairs(state.OwnersBySlot) do
-                    if tonumber(owner)==player.UserId then
-                      ownPlot=plots:FindFirstChild(tostring(slot))
-                      break
-                    end
+            local function walkTo(pos,radius,deadline,label,watchCarry)
+              while gui.Parent and os.clock()<deadline do
+                if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then return false,"character unavailable" end
+                if watchCarry and carryObserved and carryingNow==false then return false,"dropped" end
+                if (root.Position-pos).Magnitude<=radius then return true end
+                humanoid:MoveTo(pos)
+                task.wait(.25)
+              end
+              return false,"destination unreachable"
+            end
+            local function findDropped()
+              if not snapshotRemote or not snapshotRemote:IsA("RemoteFunction") then return nil end
+              local success,snapshot=pcall(function() return snapshotRemote:InvokeServer() end)
+              if success and type(snapshot)=="table" and type(snapshot.Records)=="table" then
+                for _,rec in pairs(snapshot.Records) do
+                  if type(rec)=="table" and tostring(rec.Uid)==tostring(uid)
+                     and typeof(rec.BottomCFrame)=="CFrame" and (not rec.State or rec.State=="Slot") then
+                    return rec.BottomCFrame.Position
                   end
                 end
               end
-              if plots and not ownPlot then
-                for _,plot in ipairs(plots:GetChildren()) do
-                  local sign=plot:FindFirstChild("PlotSign")
-                  if sign then
-                    for _,label in ipairs(sign:GetDescendants()) do
-                      if label:IsA("TextLabel") and label.Text==player.Name then
-                        ownPlot=plot
-                        break
-                      end
-                    end
-                  end
-                  if ownPlot then break end
+              return nil
+            end
+            local plots=workspace:FindFirstChild("Plots")
+            local ownPlot
+            local stateRemote=RS:FindFirstChild("RF/Homestead/AskState",true)
+            if plots and stateRemote and stateRemote:IsA("RemoteFunction") then
+              local stateOK,state=pcall(function() return stateRemote:InvokeServer() end)
+              if stateOK and type(state)=="table" and type(state.OwnersBySlot)=="table" then
+                for slot,owner in pairs(state.OwnersBySlot) do
+                  if tonumber(owner)==player.UserId then ownPlot=plots:FindFirstChild(tostring(slot)) break end
                 end
               end
-              local area=ownPlot and ownPlot:FindFirstChild("ToUpdate") and ownPlot.ToUpdate:FindFirstChild("PetArea")
-              if not area or not area:IsA("BasePart") then
-                countLabel.Text="Picked up "..egg.name.." — could not identify your base"
+            end
+            if plots and not ownPlot then
+              for _,plot in ipairs(plots:GetChildren()) do
+                local sign=plot:FindFirstChild("PlotSign")
+                if sign then
+                  for _,label in ipairs(sign:GetDescendants()) do
+                    if label:IsA("TextLabel") and label.Text==player.Name then ownPlot=plot break end
+                  end
+                end
+                if ownPlot then break end
+              end
+            end
+            local area=ownPlot and ownPlot:FindFirstChild("ToUpdate")
+            area=area and area:FindFirstChild("PetArea")
+            if not area or not area:IsA("BasePart") then
+              countLabel.Text="Your base could not be identified"
+              return
+            end
+            local eggPos=cf.Position
+            local recoveries=0
+            while gui.Parent and recoveries<=2 do
+              countLabel.Text=(recoveries==0 and "Approaching " or "Recovering ")..egg.name
+              local approached,why=walkTo(eggPos,9,os.clock()+50,"egg",false)
+              if not approached then countLabel.Text="Could not reach egg: "..why return end
+              local success,accepted,reason=pcall(function() return carryRemote:InvokeServer({Uid=uid}) end)
+              if not success or not accepted then
+                countLabel.Text="Pickup rejected: "..tostring(reason or accepted):sub(1,60)
                 return
               end
-              local target=area.Position
               countLabel.Text="Carrying "..egg.name.." home..."
-              local homeDeadline=os.clock()+65
-              while gui.Parent and os.clock()<homeDeadline do
-                if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then
-                  countLabel.Text="Return interrupted: character unavailable"
-                  return
-                end
-                local remaining=(root.Position-target).Magnitude
-                if remaining<=5 then break end
-                humanoid:MoveTo(target)
-                task.wait(.45)
+              -- Server events, when present, tell us whether the carry was dropped.
+              -- Never assume the original egg position is where it landed.
+              local reached,why=walkTo(area.Position,5,os.clock()+90,"base",true)
+              if reached then
+                countLabel.Text="Reached base with "..egg.name.." — verify claim"
+                return
               end
-              if (root.Position-target).Magnitude<=5 then
-                countLabel.Text="Reached your base with "..egg.name.." — verify claim"
-              else
-                countLabel.Text="Return incomplete — move to your base manually"
+              if why~="dropped" then
+                countLabel.Text="Return stopped: "..why
+                return
               end
+              if recoveries>=2 then
+                countLabel.Text="Egg dropped repeatedly; stopped safely"
+                return
+              end
+              countLabel.Text="Egg dropped — checking its new position..."
+              eggPos=findDropped()
+              if not eggPos then
+                countLabel.Text="Egg dropped; current position unavailable"
+                return
+              end
+              recoveries=recoveries+1
             end
           end)
           if not ok and gui.Parent then

@@ -596,56 +596,68 @@ local function inspectHalloween()
   if v:IsA("TextLabel") then v:Destroy() end
  end
  local lines={}
- local function add(s)
-  if #lines<100 then lines[#lines+1]=s end
- end
- add("READ ONLY | No pickups or unknown remotes called")
- local keys={"halloween","haunted","grave","phantom","pumpkin","spectral","event","swamp","manor"}
+ local function add(line) if #lines<90 then table.insert(lines,tostring(line)) end end
+ local keys={"halloween","haunted","graveyard","pumpkin","spectral","swamp","manor","spooky","witch","ghost","cemetery"}
  local function relevant(value)
   local lower=tostring(value):lower()
   for _,key in ipairs(keys) do if lower:find(key,1,true) then return true end end
   return false
  end
- local hits=0
+ add("HALLOWEEN-SPECIFIC NAMES (excluding generic Event)")
+ local found,remotes,eggRemotes={},{},{}
  for _,scope in ipairs({RS,workspace}) do
   for _,obj in ipairs(scope:GetDescendants()) do
    if relevant(obj.Name) then
-    hits=hits+1
-    if hits<=25 then add(obj.ClassName.." | "..obj:GetFullName():sub(1,100)) end
+    found[#found+1]=obj
+    if obj:IsA("RemoteFunction") or obj:IsA("RemoteEvent") then remotes[#remotes+1]=obj end
+   end
+   if scope==RS and (obj:IsA("RemoteFunction") or obj:IsA("RemoteEvent")) then
+    local lower=obj.Name:lower()
+    if (lower:find("egg",1,true) or lower:find("dimension",1,true) or lower:find("world",1,true))
+      and (lower:find("snapshot",1,true) or lower:find("state",1,true) or lower:find("area",1,true)) then
+      eggRemotes[#eggRemotes+1]=obj
+    end
    end
   end
  end
- add("Event-related named objects: "..hits)
+ add("Specific objects: "..#found.." | specific remotes: "..#remotes)
+ for i=1,math.min(20,#found) do
+  local o=found[i]
+  add(o.ClassName.." | "..o:GetFullName():sub(1,94))
+ end
+ add("POSSIBLE EGG / AREA DATA REMOTES: "..#eggRemotes)
+ for i=1,math.min(18,#eggRemotes) do
+  local o=eggRemotes[i]
+  add(o.ClassName.." | "..o:GetFullName():sub(1,94))
+ end
  local snapshot=RS:FindFirstChild("RF/EggWorld/AskFieldEggSnapshot",true)
  if snapshot and snapshot:IsA("RemoteFunction") then
   local ok,data=pcall(function() return snapshot:InvokeServer() end)
   if ok and type(data)=="table" and type(data.Records)=="table" then
-   local count,eventCount,areas=0,0,{}
+   local count,matching,values=0,0,{}
    for _,rec in pairs(data.Records) do
     if type(rec)=="table" then
      count=count+1
-     local matched=false
-     for key,val in pairs(rec) do
-      if (type(val)=="string" or type(val)=="number") and relevant(val) then
-       matched=true
-       areas[tostring(key).."="..tostring(val)]=true
+     local eventField=false
+     for key,value in pairs(rec) do
+      if type(value)=="string" and relevant(value) then
+       eventField=true
+       values[tostring(key).."="..value]=true
       end
      end
-     if matched then eventCount=eventCount+1 end
+     if eventField then matching=matching+1 end
     end
    end
-   add("World snapshot: "..count.." records, "..eventCount.." event matches")
-   local printed=0
-   for value in pairs(areas) do
-    printed=printed+1
-    if printed>12 then break end
-    add("Field: "..value:sub(1,100))
+   add("CURRENT WORLD SNAPSHOT: "..count.." eggs, "..matching.." Halloween-tagged")
+   local n=0
+   for value in pairs(values) do
+    n=n+1
+    if n>15 then break end
+    add("Egg field: "..value:sub(1,100))
    end
-  else
-   add("World snapshot unavailable")
-  end
- else add("World snapshot remote not found") end
- if hits==0 then add("No named event objects replicated to this client") end
+  else add("World snapshot could not be read") end
+ end
+ if #found==0 then add("No Halloween names exposed here; try while in Halloween dimension") end
  for i,entry in ipairs(lines) do
   local label=txt(halloweenList,entry,4,0,422,22,11,P.text,false)
   label.Size=UDim2.new(1,-12,0,22)
@@ -653,7 +665,7 @@ local function inspectHalloween()
   label.ZIndex=37
  end
  halloweenList.CanvasSize=UDim2.fromOffset(0,#lines*25)
- halloweenInfo.Text="Found "..hits.." named objects. Results don't prove a pickup API."
+ halloweenInfo.Text="Specific matches: "..#found..". Scroll for egg/area remotes."
 end
 halloweenScan.MouseButton1Click:Connect(inspectHalloween)
 

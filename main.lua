@@ -280,6 +280,17 @@ local list=ui("ScrollingFrame",finder,{Position=UDim2.fromOffset(15,120),
   ZIndex=16})
 round(list,10)
 local listLayout=ui("UIListLayout",list,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
+-- Carry state is authoritative when this game version publishes the event.
+local carryObserved=false
+local carryingNow=nil
+local carryEvent=RS:FindFirstChild("Eggs: AreaEggCarryState",true)
+  or RS:FindFirstChild("RE/EggWorld/FieldEggCarryState",true)
+if carryEvent and carryEvent:IsA("RemoteEvent") then
+  carryEvent.OnClientEvent:Connect(function(state)
+    carryObserved=true
+    carryingNow=type(state)=="table" and state.IsCarrying==true
+  end)
+end
 local remote
 local latest={}
 local lastStatus=""
@@ -317,11 +328,12 @@ local function renderFinder()
       locate.ZIndex=20
       locate.TextSize=13
       locate.Font=Enum.Font.GothamBlack
-      local function walkSmart(humanoid,root,target,arrival,seconds,phase,token)
+      local function walkSmart(humanoid,root,target,arrival,seconds,phase,token,checkCarry)
         local deadline=os.clock()+seconds
         local attempts=0
         while gui.Parent and _G.YafiTripToken==token and os.clock()<deadline do
           if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then return false,"character unavailable" end
+          if checkCarry and carryObserved and carryingNow==false then return false,"egg dropped; stopped return" end
           if (root.Position-target).Magnitude<=arrival then return true end
           attempts=attempts+1
           countLabel.Text=phase.." (route "..attempts..")"
@@ -347,6 +359,7 @@ local function renderFinder()
               if (root.Position-point.Position).Magnitude<=3.5 then break end
               task.wait(.2)
               if _G.YafiTripToken~=token then return false,"target changed" end
+              if checkCarry and carryObserved and carryingNow==false then return false,"egg dropped; stopped return" end
               if (root.Position-previous).Magnitude<.45 then stagnation=stagnation+.2 else stagnation=0 end
               previous=root.Position
               if stagnation>=1.8 then blocked=true break end
@@ -358,9 +371,9 @@ local function renderFinder()
         end
         return false,_G.YafiTripToken~=token and "target changed" or "route blocked or timed out"
       end
-      local function travelTo(humanoid,root,target,arrival,seconds,phase,token)
+      local function travelTo(humanoid,root,target,arrival,seconds,phase,token,checkCarry)
         if _G.YafiTripToken~=token then return false,"target changed" end
-        return walkSmart(humanoid,root,target,arrival,seconds,phase,token)
+        return walkSmart(humanoid,root,target,arrival,seconds,phase,token,checkCarry)
       end
       locate.MouseButton1Click:Connect(function()
         -- A new selection invalidates any running journey.
@@ -393,7 +406,7 @@ local function renderFinder()
             activeHumanoid=humanoid
             if not _G.YafiSavedSpeed then _G.YafiSavedSpeed=humanoid.WalkSpeed end
             savedSpeed=_G.YafiSavedSpeed
-            local flashSpeed=110
+            local flashSpeed=70
             humanoid.WalkSpeed=flashSpeed
             local destination=cf.Position
             local arrived,travelError=travelTo(humanoid,root,destination,9,60,"Flash to "..egg.name,token)
@@ -410,24 +423,22 @@ local function renderFinder()
             local sent,response,reason=pcall(function()
               return carryRemote:InvokeServer({Uid=uid})
             end)
-            if false then -- Teleport-only retry disabled in Flash mode.
-              -- The server can reject a pickup immediately after a local teleport.
-              -- Allow character movement to settle and retry only once.
-              countLabel.Text="Teleport pickup rejected; confirming position..."
-              humanoid:MoveTo(destination)
-              task.wait(1.25)
-              if humanoid.Health>0 and root.Parent and (root.Position-destination).Magnitude<=9 then
-                sent,response,reason=pcall(function()
-                  return carryRemote:InvokeServer({Uid=uid})
-                end)
-              end
-            end
             if not gui.Parent or _G.YafiTripToken~=token then return end
             if not sent then
               countLabel.Text="Pickup error: "..tostring(response):sub(1,65)
             elseif response==false or response==nil then
               countLabel.Text="Server rejected pickup: "..tostring(reason or "conditions not met"):sub(1,45)
             else
+              -- Do not sprint while carrying: the game can drop the egg after a
+              -- high-displacement move. Restore the server's normal carry pace.
+              humanoid.WalkSpeed=savedSpeed
+              countLabel.Text="Pickup accepted — checking carry..." 
+              task.wait(.65)
+              if _G.YafiTripToken~=token then return end
+              if carryObserved and carryingNow==false then
+                countLabel.Text="Egg was dropped before return; stopped"
+                return
+              end
               countLabel.Text="Egg picked up — finding your base..."
               local plots=workspace:FindFirstChild("Plots")
               local ownPlot
@@ -464,9 +475,9 @@ local function renderFinder()
               end
               local target=area.Position
               countLabel.Text="Carrying "..egg.name.." home..."
-              local reached,homeError=travelTo(humanoid,root,target,5,100,"Flash return "..egg.name,token)
+              local reached,homeError=travelTo(humanoid,root,target,5,130,"Safe return "..egg.name,token,true)
               if reached then
-                countLabel.Text="Reached your base with "..egg.name.." — verify claim"
+                countLabel.Text="Reached base with "..egg.name.." — verify claim"
               else
                 countLabel.Text="Return incomplete: "..tostring(homeError)
               end
@@ -574,7 +585,7 @@ glowButton.MouseButton1Click:Connect(function()
 end)
 local speedToggle=btn(settings,"MOVEMENT: FLASH SPEED",16,137,274,37,P.blue)
 speedToggle.TextSize=12
-txt(settings,"110 speed during trips; normal after.",17,183,274,20,10,P.muted)
+txt(settings,"Fast outbound; normal speed when carrying.",17,183,274,20,10,P.muted)
 
 txt(about,"ABOUT YAFI",17,17,272,28,17,P.text,true)
 txt(about,"EGG HUB  •  VERSION 4.0",17,55,274,22,12,P.cyan,true)

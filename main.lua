@@ -589,54 +589,16 @@ local function renderHalloweenCatalog()
  for _,child in ipairs(halloweenList:GetChildren()) do
   if child:IsA("Frame") or child:IsA("TextLabel") then child:Destroy() end
  end
- local byName={}
- for _,egg in ipairs(latest) do byName[normalize(egg.name)]=egg end
- local found=0
- for i,name in ipairs(halloweenNames) do
-  local egg=byName[normalize(name)]
-  if egg then found=found+1 end
-  local def=type(assets)=="table" and (assets[name] or assets[(egg and egg.name) or name]) or nil
-  local picture=type(def)=="table" and def.Icon or (egg and egg.icon)
-  local row=ui("Frame",halloweenList,{Size=UDim2.new(1,-8,0,58),
-   BackgroundColor3=i%2==0 and P.panel or P.deep,BorderSizePixel=0,
-   LayoutOrder=i,ZIndex=37})
-  round(row,7)
-  ui("ImageLabel",row,{Position=UDim2.fromOffset(4,5),
-   Size=UDim2.fromOffset(48,48),BackgroundTransparency=1,
-   ScaleType=Enum.ScaleType.Fit,Image=iconId(picture),ZIndex=38})
-  local rate=egg and (egg.income or egg.base) or (type(def)=="table" and tonumber(def.EarningRate))
-  local headline=txt(row,name,59,4,265,24,15,P.text,true)
-  headline.ZIndex=38
-  local sub=txt(row,(egg and "IN SERVER | " or "INDEX ONLY | ")..(rate and money(rate).."/s" or "income unknown"),59,30,265,21,12,egg and P.cyan or P.muted)
-  sub.ZIndex=38
-  local valid=egg and egg.raw and (egg.raw.Uid or egg.raw.UID or egg.raw.uid)
-    and typeof(egg.raw.BottomCFrame)=="CFrame"
-    and (egg.raw.State==nil or egg.raw.State=="Slot")
-  local steal=btn(row,valid and "STEAL" or "NOT HERE",333,10,94,37,
-    valid and Color3.fromRGB(37,174,67) or P.panel)
-  steal.ZIndex=39
-  -- Unavailable entries must consume UI clicks without triggering gameplay input.
-  steal.Active=true
-  steal.Selectable=false
-  if not valid then
-   steal.AutoButtonColor=false
-   steal.MouseButton1Click:Connect(function()
-    halloweenInfo.Text="Index entry only: no live Halloween egg ID or position"
-   end)
-  end
-  if valid then
-   steal.MouseButton1Click:Connect(function()
-    petSearch.Text=egg.name
-    eventViewOpen(false)
-    task.defer(function()
-     local callback=stealActions[egg.name]
-     if callback then callback() else countLabel.Text="Refresh LIVE EGGS to select this egg" end
-    end)
-   end)
-  end
- end
- halloweenList.CanvasSize=UDim2.fromOffset(0,#halloweenNames*61)
- halloweenInfo.Text=found.." Halloween types in current snapshot | others are index only"
+ local label=txt(halloweenList,"Halloween live egg source not identified yet.",8,8,415,30,15,P.text,true)
+ label.LayoutOrder=1
+ label.ZIndex=38
+ local sub=txt(halloweenList,"Incorrect online egg catalog removed. Use INSPECT EVENT to find the real source.",8,45,415,55,13,P.muted)
+ sub.TextWrapped=true
+ sub.TextTruncate=Enum.TextTruncate.None
+ sub.LayoutOrder=2
+ sub.ZIndex=38
+ halloweenList.CanvasSize=UDim2.fromOffset(0,112)
+ halloweenInfo.Text="No verified Halloween egg records or STEAL targets yet"
 end
 local halloweenButton=btn(finder,"🎃 HALLOWEEN",168,49,150,36,Color3.fromRGB(190,94,32))
 halloweenButton.TextSize=13
@@ -672,7 +634,7 @@ end)
 
 local function inspectHalloween()
  for _,v in ipairs(halloweenList:GetChildren()) do
-  if v:IsA("TextLabel") then v:Destroy() end
+  if v:IsA("TextLabel") or v:IsA("Frame") then v:Destroy() end
  end
  local lines={}
  local function add(line) if #lines<90 then table.insert(lines,tostring(line)) end end

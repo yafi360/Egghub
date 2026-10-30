@@ -805,6 +805,51 @@ local function nearbyMonster()
  end
  return best,bestDist
 end
+-- Observe the actual fishing prompt and reel UI instead of inventing a server remote.
+local VIM
+pcall(function() VIM=game:GetService("VirtualInputManager") end)
+local function visibleFishingPrompt()
+ local root=player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+ if not root then return nil end
+ for _,obj in ipairs(workspace:GetDescendants()) do
+  if obj:IsA("ProximityPrompt") and obj.Enabled then
+   local n=(obj.Name.." "..obj.ActionText.." "..obj.ObjectText):lower()
+   if n:find("fish",1,true) or n:find("cast",1,true) or n:find("rod",1,true) then
+    local parent=obj.Parent
+    local pos=parent and (parent:IsA("BasePart") and parent.Position or parent:IsA("Attachment") and parent.WorldPosition)
+    if pos and (root.Position-pos).Magnitude<=math.max(12,obj.MaxActivationDistance) then return obj end
+   end
+  end
+ end
+end
+local function reelControl()
+ local pg=player:FindFirstChild("PlayerGui")
+ if not pg then return nil end
+ for _,obj in ipairs(pg:GetDescendants()) do
+  if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+   if obj.Visible and obj.AbsoluteSize.X>0 then
+    local v=tostring(obj.Text):lower()
+    if v:find("click fast",1,true) or v:find("tap fast",1,true) or v:find("reel",1,true) then
+     local p=obj.Parent
+     if obj:IsA("TextButton") then return obj end
+     if p and p:IsA("GuiButton") then return p end
+     return obj
+    end
+   end
+  end
+ end
+end
+local function reelClick(obj)
+ if not VIM then return false end
+ local pos=obj.AbsolutePosition
+ local size=obj.AbsoluteSize
+ local x,y=math.floor(pos.X+size.X/2),math.floor(pos.Y+size.Y/2)
+ local ok=pcall(function()
+  VIM:SendMouseButtonEvent(x,y,0,true,game,0)
+  VIM:SendMouseButtonEvent(x,y,0,false,game,0)
+ end)
+ return ok
+end
 fishToggle.MouseButton1Click:Connect(function()
  autoFish=not autoFish
  fishThread=fishThread+1
@@ -823,11 +868,37 @@ fishToggle.MouseButton1Click:Connect(function()
     if not tool then
      fishStatus.Text="Fishing: equip/unlock a rod"
     elseif equipTool(tool) then
-     local ok=pcall(function() tool:Activate() end)
-     fishStatus.Text=ok and "Fishing: cast attempt (reel unverified)" or "Fishing: activation failed"
+     local prompt=visibleFishingPrompt()
+     if prompt then
+      local ok=pcall(function()
+       prompt:InputHoldBegin()
+       task.wait(math.max(.2,prompt.HoldDuration))
+       prompt:InputHoldEnd()
+      end)
+      fishStatus.Text=ok and "Fishing: cast prompt triggered" or "Fishing: prompt unavailable"
+     else
+      pcall(function() tool:Activate() end)
+      fishStatus.Text="Fishing: rod activated; watching reel"
+     end
+     local untilTime=os.clock()+12
+     while autoFish and ticket==fishThread and os.clock()<untilTime and not _G.YafiPickupBusy do
+      local control=reelControl()
+      if control then
+       local clicked=reelClick(control)
+       fishStatus.Text=clicked and "Fishing: reeling" or "Fishing: reel detected (input unsupported)"
+       if clicked then
+        for j=1,7 do
+         if not autoFish or ticket~=fishThread then break end
+         reelClick(control)
+         task.wait(.09)
+        end
+       end
+      end
+      task.wait(.18)
+     end
     end
    end
-   task.wait(5)
+   task.wait(.7)
   end
  end)
 end)

@@ -303,7 +303,7 @@ local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(1,0),
   BackgroundColor3=P.deep,BorderSizePixel=0,Visible=false,ZIndex=15})
 round(finder,17)
 line(finder,P.cyan,2)
-ui("UIScale",finder,{Scale=.68})
+ui("UIScale",finder,{Scale=.76})
 local titleBar=ui("Frame",finder,{Size=UDim2.new(1,0,0,42),BackgroundColor3=Color3.fromRGB(167,32,45),BorderSizePixel=0,ZIndex=16})
 round(titleBar,16)
 txt(titleBar,"STEAL PANEL  /  YAFI",17,6,360,29,20,P.text,true).ZIndex=17
@@ -317,7 +317,7 @@ finderTab.ZIndex=50
 line(finderTab,Color3.fromRGB(43,29,35),3)
 local finderClose=btn(finder,"X",447,7,30,29,Color3.fromRGB(85,43,76))
 finderClose.ZIndex=17
-local countLabel=txt(finder,"Loading...",17,91,455,22,13,P.cyan)
+local countLabel=txt(finder,"Loading...",17,91,455,24,15,P.cyan)
 countLabel.ZIndex=16
 local petSearch=ui("TextBox",finder,{
   Position=UDim2.fromOffset(15,119),Size=UDim2.fromOffset(268,35),
@@ -351,7 +351,7 @@ local serverHunter=ui("Frame",finder,{Name="ServerHunter",Position=UDim2.fromOff
 round(serverHunter,10)
 local hunterTitle=txt(serverHunter,"PUBLIC SERVERS  /  EGG DATA UNKNOWN",9,8,445,22,13,P.cyan,true)
 hunterTitle.ZIndex=23
-local hunterNote=txt(serverHunter,"Join a server to scan its eggs. No remote egg previews.",9,32,445,22,11,P.muted,false)
+local hunterNote=txt(serverHunter,"Join a server to scan its eggs. No remote egg previews.",9,32,445,24,13,P.muted,false)
 hunterNote.ZIndex=23
 local hunterRefresh=btn(serverHunter,"FIND SERVERS",10,62,205,37,P.blue)
 hunterRefresh.ZIndex=24
@@ -467,9 +467,9 @@ privateButton.Visible=false
 local privateView=ui("Frame",serverHunter,{Size=UDim2.fromScale(1,1),BackgroundColor3=P.navy,
   BorderSizePixel=0,Visible=false,ZIndex=29})
 round(privateView,10)
-local privateHeading=txt(privateView,"PRIVATE HUNTER  /  SAVED SIGHTINGS",12,8,430,24,14,P.cyan,true)
+local privateHeading=txt(privateView,"PRIVATE HUNTER  /  SAVED SIGHTINGS",12,8,430,27,16,P.cyan,true)
 privateHeading.ZIndex=30
-local privateInfo=txt(privateView,"Only servers you personally scanned. Old eggs may be gone.",12,34,440,25,11,P.muted)
+local privateInfo=txt(privateView,"Only servers you personally scanned. Old eggs may be gone.",12,36,440,25,13,P.muted)
 privateInfo.ZIndex=30
 local scanHere=btn(privateView,"SCAN THIS SERVER",12,65,211,36,P.blue)
 scanHere.ZIndex=31
@@ -495,14 +495,14 @@ local function renderReports()
     local r=entry.report
     local elapsed=math.max(0,os.time()-r.epoch)
     local age=elapsed<60 and (elapsed.."s") or (math.floor(elapsed/60).."m")
-    local row=ui("Frame",reportList,{Size=UDim2.new(1,-7,0,49),BackgroundColor3=P.deep,
+    local row=ui("Frame",reportList,{Size=UDim2.new(1,-7,0,59),BackgroundColor3=P.deep,
       BorderSizePixel=0,LayoutOrder=i,ZIndex=32})
     round(row,7)
-    local label=txt(row,tostring(r.bestName or "No eggs").." | "..money(r.bestRate).." /s",8,3,315,20,12,P.text,true)
+    local label=txt(row,tostring(r.bestName or "No eggs").." | "..money(r.bestRate).." /s",8,5,315,24,15,P.text,true)
     label.ZIndex=33
-    local sub=txt(row,"Observed "..age.." ago  |  "..tostring(r.count or 0).." eggs",8,25,315,18,10,P.muted)
+    local sub=txt(row,"Observed "..age.." ago  |  "..tostring(r.count or 0).." eggs",8,30,315,21,13,P.muted)
     sub.ZIndex=33
-    local hop=btn(row,"HOP",345,8,77,33,P.green)
+    local hop=btn(row,"HOP",345,11,77,36,P.green)
     hop.ZIndex=33
     hop.MouseButton1Click:Connect(function()
       if _G.YafiPickupBusy then privateInfo.Text="Finish current STEAL trip before hopping" return end
@@ -513,7 +513,7 @@ local function renderReports()
       if not success then privateInfo.Text="Hop failed: "..tostring(err):sub(1,75) end
     end)
   end
-  reportList.CanvasSize=UDim2.fromOffset(0,math.min(#sorted,30)*53)
+  reportList.CanvasSize=UDim2.fromOffset(0,math.min(#sorted,30)*63)
   if #sorted==0 then privateInfo.Text="No scans yet. Press SCAN THIS SERVER first." end
 end
 local function scanCurrent()
@@ -560,7 +560,7 @@ local halloweenView=ui("Frame",finder,{Name="HalloweenInspector",
 round(halloweenView,10)
 local halloweenHeading=txt(halloweenView,"HALLOWEEN  /  EVENT INSPECTOR",10,8,405,25,15,P.cyan,true)
 halloweenHeading.ZIndex=36
-local halloweenInfo=txt(halloweenView,"Event records not yet confirmed. No unsafe STEAL links.",10,34,438,23,11,P.muted)
+local halloweenInfo=txt(halloweenView,"Event records not yet confirmed. No unsafe STEAL links.",10,34,438,25,13,P.muted)
 halloweenInfo.ZIndex=36
 local halloweenScan=btn(halloweenView,"INSPECT EVENT",10,62,210,34,P.blue)
 halloweenScan.ZIndex=37
@@ -605,9 +605,9 @@ local function renderHalloweenCatalog()
    Size=UDim2.fromOffset(48,48),BackgroundTransparency=1,
    ScaleType=Enum.ScaleType.Fit,Image=iconId(picture),ZIndex=38})
   local rate=egg and (egg.income or egg.base) or (type(def)=="table" and tonumber(def.EarningRate))
-  local headline=txt(row,name,59,5,265,22,12,P.text,true)
+  local headline=txt(row,name,59,4,265,24,15,P.text,true)
   headline.ZIndex=38
-  local sub=txt(row,(egg and "IN SERVER | " or "INDEX ONLY | ")..(rate and money(rate).."/s" or "income unknown"),59,29,265,18,10,egg and P.cyan or P.muted)
+  local sub=txt(row,(egg and "IN SERVER | " or "INDEX ONLY | ")..(rate and money(rate).."/s" or "income unknown"),59,30,265,21,12,egg and P.cyan or P.muted)
   sub.ZIndex=38
   local valid=egg and egg.raw and (egg.raw.Uid or egg.raw.UID or egg.raw.uid)
     and typeof(egg.raw.BottomCFrame)=="CFrame"
@@ -781,7 +781,7 @@ local function renderFinder()
         Position=UDim2.fromOffset(59,0),Size=UDim2.new(1,-156,1,0),
         BackgroundTransparency=1,TextColor3=P.text,TextWrapped=true,
         RichText=true,TextXAlignment=Enum.TextXAlignment.Left,
-        Font=Enum.Font.GothamBlack,TextSize=15,ZIndex=18,
+        Font=Enum.Font.GothamBlack,TextSize=17,ZIndex=18,
         Text=string.format("<b>%d.</b> %s | %s <b>%s</b>\n%s | Size <b>%.2fx</b>",
           shown,'<font color="'..rarityHex(egg.rarity)..'"><b>'..richSafe(egg.name)..'</b></font>',egg.income and "EST." or "BASE",
           money(value),richSafe(egg.mutation),egg.scale)

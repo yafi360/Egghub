@@ -974,9 +974,21 @@ local function renderFinder()
             local recoveries=0
             while gui.Parent and recoveries<=2 do
               countLabel.Text=(recoveries==0 and "Approaching " or "Recovering ")..egg.name
-              local approached,why=walkTo(eggPos,3.5,os.clock()+50,"egg",false)
+              local approached,why=walkTo(eggPos,7,os.clock()+50,"egg",false)
               if not approached then countLabel.Text="Could not reach egg: "..why return end
               if thisTrip~=tripSerial then return end
+              countLabel.Text="Near "..egg.name.." - closing pickup distance..."
+              local closeDeadline=os.clock()+2.5
+              while gui.Parent and os.clock()<closeDeadline and (root.Position-eggPos).Magnitude>4 do
+                if thisTrip~=tripSerial or not _G.YafiPickupBusy then return end
+                humanoid:MoveTo(eggPos)
+                task.wait(.18)
+              end
+              if thisTrip~=tripSerial then return end
+              if (root.Position-eggPos).Magnitude>8 then
+                countLabel.Text="Pickup position blocked; stopped"
+                return
+              end
               -- A selected egg may despawn or change state during the walk.
               -- Do not submit an outdated UID to the carry endpoint.
               if snapshotRemote and snapshotRemote:IsA("RemoteFunction") then

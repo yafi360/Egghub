@@ -324,7 +324,7 @@ local function renderFinder()
         local old=workspace:FindFirstChild("YafiPetLocateHighlight")
         if old then old:Destroy() end
         if not target then
-          countLabel.Text="Can't locate "..egg.name.." in world; no steal attempted"
+          countLabel.Text="No loaded object for egg ID: "..tostring(egg.recordId):sub(1,22)
           return
         end
         local h=Instance.new("Highlight")

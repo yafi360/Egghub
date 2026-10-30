@@ -138,6 +138,16 @@ local function earned(e,base)
   return base*math.max(tonumber(e.AssetScale) or 1,0)^1.85*m
  end
 end
+local rarityColors={
+ common="#BFC9D9", uncommon="#74E88E", rare="#52B9FF",
+ epic="#B98AFF", legendary="#FFD45D", mythic="#FF6FAE",
+ mythical="#FF6FAE", divine="#FFDB66", secret="#FF555F",
+ celestial="#82F8FF", exclusive="#FFB477"
+}
+local function rarityHex(rarity)
+ local key=tostring(rarity or ""):lower():gsub("%s+","")
+ return rarityColors[key] or "#F0F8FF"
+end
 local function richSafe(s)
  return tostring(s or ""):gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;")
 end
@@ -253,7 +263,7 @@ local function renderFinder()
         RichText=true,TextXAlignment=Enum.TextXAlignment.Left,
         Font=Enum.Font.GothamMedium,TextSize=13,ZIndex=18,
         Text=string.format("%d. %s | %s <b>%s</b>\n%s | Size <b>%.2fx</b>",
-          shown,richSafe(egg.name),egg.income and "EST." or "BASE",
+          shown,'<font color="'..rarityHex(egg.rarity)..'"><b>'..richSafe(egg.name)..'</b></font>',egg.income and "EST." or "BASE",
           money(value),richSafe(egg.mutation),egg.scale)
       })
     end
@@ -291,7 +301,8 @@ local function refreshFinder()
       local gameBase=type(def)=="table" and tonumber(def.EarningRate) or nil
       table.insert(eggs,{name=name,mutation=tostring(egg.BaseMutation or "None"),
         scale=tonumber(egg.AssetScale) or 1,base=gameBase or database[normalize(name)],
-        income=earned(egg,gameBase),icon=type(def)=="table" and def.Icon or nil})
+        income=earned(egg,gameBase),icon=type(def)=="table" and def.Icon or nil,
+        rarity=(type(def)=="table" and (def.Rarity or def.Tier)) or egg.Rarity or egg.Tier})
     end
   end
   table.sort(eggs,function(a,b)

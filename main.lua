@@ -263,6 +263,15 @@ ui("UIScale",finder,{Scale=.68})
 local titleBar=ui("Frame",finder,{Size=UDim2.new(1,0,0,42),BackgroundColor3=Color3.fromRGB(167,32,45),BorderSizePixel=0,ZIndex=16})
 round(titleBar,16)
 txt(titleBar,"STEAL PANEL  /  YAFI",17,6,360,29,20,P.text,true).ZIndex=17
+-- Red edge arrow: open panel when collapsed, hide when expanded.
+local finderTab=btn(gui,">",0,0,46,46,Color3.fromRGB(218,34,40))
+finderTab.Name="FinderEdgeTab"
+finderTab.AnchorPoint=Vector2.new(1,.5)
+finderTab.Position=UDim2.new(1,-96,.53,0)
+finderTab.Font=Enum.Font.GothamBlack
+finderTab.TextSize=29
+finderTab.ZIndex=50
+line(finderTab,Color3.fromRGB(43,29,35),3)
 local finderClose=btn(finder,"X",447,7,30,29,Color3.fromRGB(85,43,76))
 finderClose.ZIndex=17
 local countLabel=txt(finder,"Loading...",17,46,460,22,12,P.cyan)
@@ -568,15 +577,19 @@ local function refreshFinder()
   renderFinder()
   running=false
 end
-local function openFinder()
-  finder.Visible=true
-  task.spawn(refreshFinder)
+local function setFinderOpen(on)
+  finder.Visible=on
+  finderTab.Text=on and "<" or ">"
+  -- Arrow is accessible beside the panel, or on the right when hidden.
+  finderTab.Position=on and UDim2.new(1,-440,.53,0) or UDim2.new(1,-96,.53,0)
+  eggLauncher.Visible=not on
+  if on then task.spawn(refreshFinder) end
 end
+local function openFinder() setFinderOpen(true) end
 finderButton.MouseButton1Click:Connect(openFinder)
-eggLauncher.MouseButton1Click:Connect(function()
-  if finder.Visible then finder.Visible=false else openFinder() end
-end)
-finderClose.MouseButton1Click:Connect(function() finder.Visible=false end)
+eggLauncher.MouseButton1Click:Connect(openFinder)
+finderTab.MouseButton1Click:Connect(function() setFinderOpen(not finder.Visible) end)
+finderClose.MouseButton1Click:Connect(function() setFinderOpen(false) end)
 petSearch:GetPropertyChangedSignal("Text"):Connect(renderFinder)
 minIncome:GetPropertyChangedSignal("Text"):Connect(renderFinder)
 refreshBtn.MouseButton1Click:Connect(function() task.spawn(refreshFinder) end)

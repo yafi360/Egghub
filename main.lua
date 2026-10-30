@@ -299,7 +299,7 @@ end)
 
 -- An expanded overlay preserves the V4 hub's compact navigation.
 local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(1,0),
-  Position=UDim2.new(1,-56,0,100),Size=UDim2.fromOffset(490,440),
+  Position=UDim2.new(1,-56,0,100),Size=UDim2.fromOffset(490,510),
   BackgroundColor3=P.deep,BorderSizePixel=0,Visible=false,ZIndex=15})
 round(finder,17)
 line(finder,P.cyan,2)
@@ -317,10 +317,10 @@ finderTab.ZIndex=50
 line(finderTab,Color3.fromRGB(43,29,35),3)
 local finderClose=btn(finder,"X",447,7,30,29,Color3.fromRGB(85,43,76))
 finderClose.ZIndex=17
-local countLabel=txt(finder,"Loading...",17,46,460,22,12,P.cyan)
+local countLabel=txt(finder,"Loading...",17,91,455,22,13,P.cyan)
 countLabel.ZIndex=16
 local petSearch=ui("TextBox",finder,{
-  Position=UDim2.fromOffset(15,75),Size=UDim2.fromOffset(268,35),
+  Position=UDim2.fromOffset(15,119),Size=UDim2.fromOffset(268,35),
   Text="",PlaceholderText="Filter pets by name...",ClearTextOnFocus=false,
   Font=Enum.Font.GothamMedium,TextSize=13,TextColor3=P.text,
   PlaceholderColor3=P.muted,BackgroundColor3=P.panel,
@@ -328,25 +328,25 @@ local petSearch=ui("TextBox",finder,{
 round(petSearch,9)
 ui("UIPadding",petSearch,{PaddingLeft=UDim.new(0,9)})
 local minIncome=ui("TextBox",finder,{
-  Position=UDim2.fromOffset(289,75),Size=UDim2.fromOffset(125,35),
+  Position=UDim2.fromOffset(289,119),Size=UDim2.fromOffset(125,35),
   Text="",PlaceholderText="Min $/s",ClearTextOnFocus=false,
   Font=Enum.Font.GothamMedium,TextSize=13,TextColor3=P.text,
   PlaceholderColor3=P.muted,BackgroundColor3=P.panel,
   BorderSizePixel=0,ZIndex=16})
 round(minIncome,9)
 ui("UIPadding",minIncome,{PaddingLeft=UDim.new(0,9)})
-local refreshBtn=btn(finder,"↻",424,75,50,35,P.blue)
+local refreshBtn=btn(finder,"↻",424,119,50,35,P.blue)
 refreshBtn.ZIndex=16
-local list=ui("ScrollingFrame",finder,{Position=UDim2.fromOffset(15,120),
-  Size=UDim2.fromOffset(460,302),BackgroundColor3=P.navy,
+local list=ui("ScrollingFrame",finder,{Position=UDim2.fromOffset(15,164),
+  Size=UDim2.fromOffset(460,328),BackgroundColor3=P.navy,
   BorderSizePixel=0,ScrollBarThickness=5,CanvasSize=UDim2.fromOffset(0,0),
   ZIndex=16})
 round(list,10)
 local listLayout=ui("UIListLayout",list,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
 -- SERVER HUNTER: public server browser. Other servers' egg contents are unknown
 -- until a player actually joins and reads that server's snapshot.
-local serverHunter=ui("Frame",finder,{Name="ServerHunter",Position=UDim2.fromOffset(15,120),
-  Size=UDim2.fromOffset(460,302),BackgroundColor3=P.navy,BorderSizePixel=0,
+local serverHunter=ui("Frame",finder,{Name="ServerHunter",Position=UDim2.fromOffset(15,164),
+  Size=UDim2.fromOffset(460,328),BackgroundColor3=P.navy,BorderSizePixel=0,
   Visible=false,ZIndex=22})
 round(serverHunter,10)
 local hunterTitle=txt(serverHunter,"PUBLIC SERVERS  /  EGG DATA UNKNOWN",9,8,445,22,13,P.cyan,true)
@@ -358,11 +358,11 @@ hunterRefresh.ZIndex=24
 local hunterBack=btn(serverHunter,"BACK TO EGGS",226,62,224,37,P.panel)
 hunterBack.ZIndex=24
 local hunterList=ui("ScrollingFrame",serverHunter,{
-  Position=UDim2.fromOffset(9,108),Size=UDim2.fromOffset(442,185),
+  Position=UDim2.fromOffset(9,108),Size=UDim2.fromOffset(442,210),
   BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=4,
   CanvasSize=UDim2.fromOffset(0,0),ZIndex=23})
 local hunterLayout=ui("UIListLayout",hunterList,{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder})
-local hunterButton=btn(finder,"SERVERS",360,43,114,32,P.blue)
+local hunterButton=btn(finder,"SERVERS",324,49,150,36,P.blue)
 hunterButton.TextSize=13
 hunterButton.ZIndex=20
 local HttpService=game:GetService("HttpService")
@@ -375,11 +375,9 @@ local function showHunter(on)
   minIncome.Visible=not on
   refreshBtn.Visible=not on
   hunterButton.Visible=true
-  hunterButton.Text=on and "LIVE EGGS" or "SERVERS"
+  hunterButton.Text="SERVERS"
 end
-hunterButton.MouseButton1Click:Connect(function()
-  showHunter(not serverHunter.Visible)
-end)
+-- Server tab binding set below the Halloween panel
 hunterBack.MouseButton1Click:Connect(function() showHunter(false) end)
 local function fetchServers()
   if hunterBusy then return end
@@ -557,7 +555,7 @@ showPublic.MouseButton1Click:Connect(function() privateView.Visible=false end)
 
 -- Halloween inspector: read-only discovery, no unverified remote calls.
 local halloweenView=ui("Frame",finder,{Name="HalloweenInspector",
-  Position=UDim2.fromOffset(15,120),Size=UDim2.fromOffset(460,302),
+  Position=UDim2.fromOffset(15,164),Size=UDim2.fromOffset(460,328),
   BackgroundColor3=P.navy,BorderSizePixel=0,Visible=false,ZIndex=35})
 round(halloweenView,10)
 local halloweenHeading=txt(halloweenView,"HALLOWEEN  /  EVENT INSPECTOR",10,8,405,25,15,P.cyan,true)
@@ -569,7 +567,7 @@ halloweenScan.ZIndex=37
 local halloweenBack=btn(halloweenView,"BACK TO EGGS",232,62,215,34,P.panel)
 halloweenBack.ZIndex=37
 local halloweenList=ui("ScrollingFrame",halloweenView,{
- Position=UDim2.fromOffset(10,106),Size=UDim2.fromOffset(438,187),
+ Position=UDim2.fromOffset(10,106),Size=UDim2.fromOffset(438,210),
  BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=4,
  CanvasSize=UDim2.fromOffset(0,0),ZIndex=36})
 local halloweenLayout=ui("UIListLayout",halloweenList,{
@@ -631,7 +629,7 @@ local function renderHalloweenCatalog()
  halloweenList.CanvasSize=UDim2.fromOffset(0,#halloweenNames*61)
  halloweenInfo.Text=found.." Halloween types in current snapshot | others are index only"
 end
-local halloweenButton=btn(finder,"🎃 HALLOWEEN",219,43,136,32,Color3.fromRGB(190,94,32))
+local halloweenButton=btn(finder,"🎃 HALLOWEEN",168,49,150,36,Color3.fromRGB(190,94,32))
 halloweenButton.TextSize=13
 halloweenButton.ZIndex=20
 eventViewOpen=function(on)
@@ -641,14 +639,28 @@ eventViewOpen=function(on)
  petSearch.Visible=not on
  minIncome.Visible=not on
  refreshBtn.Visible=not on
- hunterButton.Visible=not on
- halloweenButton.Text=on and "LIVE EGGS" or "🎃 HALLOWEEN"
+ hunterButton.Visible=true
+ halloweenButton.Text="🎃 HALLOWEEN"
  if on then renderHalloweenCatalog() end
 end
 halloweenButton.MouseButton1Click:Connect(function()
- eventViewOpen(not halloweenView.Visible)
+ if halloweenView.Visible then eventViewOpen(false)
+ else showHunter(false) eventViewOpen(true) end
+end)
+hunterButton.MouseButton1Click:Connect(function()
+ local nextState=not serverHunter.Visible
+ eventViewOpen(false)
+ showHunter(nextState)
 end)
 halloweenBack.MouseButton1Click:Connect(function() eventViewOpen(false) end)
+local liveEggsTab=btn(finder,"LIVE EGGS",15,49,147,36,P.blue)
+liveEggsTab.TextSize=13
+liveEggsTab.ZIndex=21
+liveEggsTab.MouseButton1Click:Connect(function()
+ eventViewOpen(false)
+ showHunter(false)
+end)
+
 local function inspectHalloween()
  for _,v in ipairs(halloweenList:GetChildren()) do
   if v:IsA("TextLabel") then v:Destroy() end

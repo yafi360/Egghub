@@ -217,17 +217,18 @@ txt(tools,"Refreshes every 5 seconds when open.",17,137,274,22,11,P.muted)
 
 -- Compact launcher above the game's egg menu (right-side HUD).
 -- Transparent touch target; the Pokeball itself is a true circular frame.
-local eggLauncher=btn(gui,"",0,0,46,46,P.deep)
+local eggLauncher=btn(gui,"",0,0,56,56,P.blue)
 eggLauncher.Name="EggFinderLauncher"
 eggLauncher.AnchorPoint=Vector2.new(1,0.5)
 eggLauncher.Position=UDim2.new(1,-48,0.325,0)
-eggLauncher.Size=UDim2.fromOffset(42,42)
-eggLauncher.BackgroundTransparency=1
+eggLauncher.Size=UDim2.fromOffset(56,56)
+eggLauncher.BackgroundTransparency=0
+line(eggLauncher,P.cyan,2)
 eggLauncher.ZIndex=30
 
 local ball=ui("Frame",eggLauncher,{
   AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),
-  Size=UDim2.fromOffset(36,36),BackgroundColor3=Color3.new(1,1,1),
+  Size=UDim2.fromOffset(39,39),BackgroundColor3=Color3.new(1,1,1),
   BorderSizePixel=0,ZIndex=31})
 round(ball,24)
 ui("UIGradient",ball,{Rotation=90,Color=ColorSequence.new({

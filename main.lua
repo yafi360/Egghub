@@ -837,6 +837,39 @@ local function renderFinder()
               end
               return false,"destination unreachable"
             end
+            -- The game's CarryAreaEgg prompt uses the currently bound egg.
+            -- Fallback only when a single prompt clearly matches the selected position.
+            local function pickupViaPrompt(position)
+              local selected,near,second
+              for _,obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("ProximityPrompt") and obj.Name=="CarryAreaEgg"
+                  and obj.Enabled and obj.Parent and obj.Parent:IsA("BasePart") then
+                  local d=(obj.Parent.Position-position).Magnitude
+                  if not near or d<near then
+                    second=near
+                    selected,near=obj,d
+                  elseif not second or d<second then second=d end
+                end
+              end
+              if not selected or near>5 or (second and second-near<2) then
+                return false,"no unique nearby egg prompt"
+              end
+              local playerDistance=(root.Position-selected.Parent.Position).Magnitude
+              if playerDistance>selected.MaxActivationDistance+1 then
+                return false,"outside pickup prompt range"
+              end
+              local fired=false
+              if type(fireproximityprompt)=="function" then
+                fired=pcall(function() fireproximityprompt(selected,1) end)
+              else
+                fired=pcall(function()
+                  selected:InputHoldBegin()
+                  task.wait(math.max(.15,selected.HoldDuration))
+                  selected:InputHoldEnd()
+                end)
+              end
+              return fired,fired and "prompt activated" or "prompt unavailable"
+            end
             local function findDropped()
               if not snapshotRemote or not snapshotRemote:IsA("RemoteFunction") then return nil end
               local success,snapshot=pcall(function() return snapshotRemote:InvokeServer() end)
@@ -932,8 +965,28 @@ local function renderFinder()
               local success,accepted,reason=pcall(function() return carryRemote:InvokeServer({Uid=uid}) end)
               if thisTrip~=tripSerial then return end
               if not success or not accepted then
-                countLabel.Text="Pickup rejected: "..tostring(reason or accepted):sub(1,60)
-                return
+                local serverReason=tostring(reason or accepted):sub(1,55)
+                -- On stale-UID errors, try the game's real egg prompt once.
+                if serverReason:lower():find("not found",1,true) then
+                  countLabel.Text="UID rejected; trying nearby egg prompt..."
+                  local promptOK,promptWhy=pickupViaPrompt(eggPos)
+                  if not promptOK then
+                    countLabel.Text="Pickup rejected: "..serverReason.." | "..promptWhy
+                    return
+                  end
+                  local deadline=os.clock()+2
+                  while thisTrip==tripSerial and os.clock()<deadline
+                    and not (carryObserved and carryingNow==true and carryUpdatedAt>=carryStart) do
+                    task.wait(.1)
+                  end
+                  if not (carryObserved and carryingNow==true and carryUpdatedAt>=carryStart) then
+                    countLabel.Text="Prompt attempted; pickup unconfirmed. Stopped."
+                    return
+                  end
+                else
+                  countLabel.Text="Pickup rejected: "..serverReason
+                  return
+                end
               end
               local confirmedCarry=carryObserved and carryingNow==true and carryUpdatedAt>=carryStart
               countLabel.Text="Carrying "..egg.name.." home..."

@@ -795,7 +795,9 @@ local function nearbyMonster()
    if hum and hum.Health>0 and part and (obj.Name:lower():find("monster",1,true)
      or obj.Name:lower():find("ghost",1,true) or obj.Name:lower():find("zombie",1,true)
      or obj.Name:lower():find("skeleton",1,true) or obj.Name:lower():find("ghoul",1,true)
-     or obj.Name:lower():find("werewolf",1,true)) then
+     or obj.Name:lower():find("werewolf",1,true)
+     or obj.Name:lower():find("wraith",1,true) or obj.Name:lower():find("undead",1,true)
+     or obj.Name:lower():find("mob",1,true) or obj.Name:lower():find("boss",1,true)) then
     local dist=(root.Position-part.Position).Magnitude
     if dist<70 and (not bestDist or dist<bestDist) then
      best,bestDist=part,dist
@@ -925,12 +927,16 @@ monsterToggle.MouseButton1Click:Connect(function()
     elseif equipTool(tool) then
      local char=player.Character
      local hum=char and char:FindFirstChildOfClass("Humanoid")
-     if distance and distance>9 and hum then
-      hum:MoveTo(target.Position)
-      monsterStatus.Text="Monsters: approaching target"
+     if hum and hum.Health<=math.max(15,hum.MaxHealth*.25) then
+      monsterStatus.Text="Monsters: low health; paused"
+     elseif distance and distance>8 and hum then
+      -- Aim for a position near the target, not inside its collision geometry.
+      local behind=target.Position-target.CFrame.LookVector*5
+      hum:MoveTo(behind)
+      monsterStatus.Text="Monsters: moving behind target"
      else
-      pcall(function() tool:Activate() end)
-      monsterStatus.Text="Monsters: attack attempt"
+      local ok=pcall(function() tool:Activate() end)
+      monsterStatus.Text=ok and "Monsters: swinging weapon" or "Monsters: attack unavailable"
      end
     end
    end

@@ -265,10 +265,9 @@ local titleBar=ui("Frame",finder,{Size=UDim2.new(1,0,0,42),BackgroundColor3=Colo
 round(titleBar,16)
 txt(titleBar,"STEAL PANEL  /  YAFI",17,6,360,29,20,P.text,true).ZIndex=17
 -- Red edge arrow: open panel when collapsed, hide when expanded.
-local finderTab=btn(gui,">",0,0,46,46,Color3.fromRGB(218,34,40))
+-- Child of finder: the arrow moves and scales with the panel.
+local finderTab=btn(finder,"<",-37,296,46,46,Color3.fromRGB(218,34,40))
 finderTab.Name="FinderEdgeTab"
-finderTab.AnchorPoint=Vector2.new(0,.5)
-finderTab.Position=UDim2.new(1,-105,.345,0)
 finderTab.Font=Enum.Font.GothamBlack
 finderTab.TextSize=29
 finderTab.ZIndex=50
@@ -521,26 +520,13 @@ local function refreshFinder()
   running=false
 end
 -- Keep the arrow physically connected to the scaled finder's left edge.
--- Pokeball opens the panel; arrow is attached only while expanded.
-local function positionFinderArrow()
-  if not finder.Visible then return end
-  local x=finder.AbsolutePosition.X-35
-  local y=finder.AbsolutePosition.Y+finder.AbsoluteSize.Y*.72
-  finderTab.Position=UDim2.fromOffset(x,y)
-end
+-- One toggle: visible blue Pokeball when closed, attached arrow when open.
 local function setFinderOpen(on)
   finder.Visible=on
   eggLauncher.Visible=not on
-  finderTab.Visible=on
-  if on then
-    positionFinderArrow()
-    task.spawn(refreshFinder)
-  end
+  if on then task.spawn(refreshFinder) end
 end
-finder:GetPropertyChangedSignal("AbsolutePosition"):Connect(positionFinderArrow)
-finder:GetPropertyChangedSignal("AbsoluteSize"):Connect(positionFinderArrow)
-finderTab.Text="<"
-finderTab.Visible=false
+finder.Visible=false
 eggLauncher.Visible=true
 local function openFinder() setFinderOpen(true) end
 finderButton.MouseButton1Click:Connect(openFinder)

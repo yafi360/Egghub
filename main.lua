@@ -574,10 +574,67 @@ local halloweenList=ui("ScrollingFrame",halloweenView,{
  CanvasSize=UDim2.fromOffset(0,0),ZIndex=36})
 local halloweenLayout=ui("UIListLayout",halloweenList,{
  Padding=UDim.new(0,3),SortOrder=Enum.SortOrder.LayoutOrder})
+local latest={}
+local stealActions={}
+local halloweenNames={
+ "Voidseer Pumpkin","Bone Emperor","Gorillastein","Soul Phantom","Shelltide Voyager",
+ "Phantom Dragon","Werewolf","BloodBloom","Grave Cerberus","Pumpkin Golem",
+ "Ghost Reaper","Hexed Pumpkin","Graveyard Brute","Haunted Scorpio","Patchwork Imp",
+ "Tombstone Bear","Crowshade","Spirit Knight","Scarecrow","Toadstool",
+ "Mimic Chest","Hooded Gerbil","Candlefang","Night Fang","Hollow Bat",
+ "Jesterpop","Pumpkin Fiend","Candy Corn","Whiskers"
+}
+local halloweenLookup={}
+for _,name in ipairs(halloweenNames) do halloweenLookup[normalize(name)]=true end
+local function renderHalloweenCatalog()
+ for _,child in ipairs(halloweenList:GetChildren()) do
+  if child:IsA("Frame") or child:IsA("TextLabel") then child:Destroy() end
+ end
+ local byName={}
+ for _,egg in ipairs(latest) do byName[normalize(egg.name)]=egg end
+ local found=0
+ for i,name in ipairs(halloweenNames) do
+  local egg=byName[normalize(name)]
+  if egg then found=found+1 end
+  local def=type(assets)=="table" and (assets[name] or assets[(egg and egg.name) or name]) or nil
+  local picture=type(def)=="table" and def.Icon or (egg and egg.icon)
+  local row=ui("Frame",halloweenList,{Size=UDim2.new(1,-8,0,58),
+   BackgroundColor3=i%2==0 and P.panel or P.deep,BorderSizePixel=0,
+   LayoutOrder=i,ZIndex=37})
+  round(row,7)
+  ui("ImageLabel",row,{Position=UDim2.fromOffset(4,5),
+   Size=UDim2.fromOffset(48,48),BackgroundTransparency=1,
+   ScaleType=Enum.ScaleType.Fit,Image=iconId(picture),ZIndex=38})
+  local rate=egg and (egg.income or egg.base) or (type(def)=="table" and tonumber(def.EarningRate))
+  local headline=txt(row,name,59,5,265,22,12,P.text,true)
+  headline.ZIndex=38
+  local sub=txt(row,(egg and "IN SERVER | " or "INDEX ONLY | ")..(rate and money(rate).."/s" or "income unknown"),59,29,265,18,10,egg and P.cyan or P.muted)
+  sub.ZIndex=38
+  local valid=egg and egg.raw and (egg.raw.Uid or egg.raw.UID or egg.raw.uid)
+    and typeof(egg.raw.BottomCFrame)=="CFrame"
+    and (egg.raw.State==nil or egg.raw.State=="Slot")
+  local steal=btn(row,valid and "STEAL" or "NOT HERE",333,10,94,37,
+    valid and Color3.fromRGB(37,174,67) or P.panel)
+  steal.ZIndex=39
+  if valid then
+   steal.MouseButton1Click:Connect(function()
+    petSearch.Text=egg.name
+    eventViewOpen(false)
+    task.defer(function()
+     local callback=stealActions[egg.name]
+     if callback then callback() else countLabel.Text="Refresh LIVE EGGS to select this egg" end
+    end)
+   end)
+  end
+ end
+ halloweenList.CanvasSize=UDim2.fromOffset(0,#halloweenNames*61)
+ halloweenInfo.Text=found.." Halloween types in current snapshot | others are index only"
+end
 local halloweenButton=btn(finder,"🎃 HALLOWEEN",219,43,136,32,Color3.fromRGB(190,94,32))
 halloweenButton.TextSize=13
 halloweenButton.ZIndex=20
-local function eventViewOpen(on)
+local eventViewOpen
+ eventViewOpen=function(on)
  halloweenView.Visible=on
  serverHunter.Visible=false
  list.Visible=not on
@@ -586,6 +643,7 @@ local function eventViewOpen(on)
  refreshBtn.Visible=not on
  hunterButton.Visible=not on
  halloweenButton.Text=on and "LIVE EGGS" or "🎃 HALLOWEEN"
+ if on then renderHalloweenCatalog() end
 end
 halloweenButton.MouseButton1Click:Connect(function()
  eventViewOpen(not halloweenView.Visible)
@@ -683,9 +741,10 @@ if carryEvent and carryEvent:IsA("RemoteEvent") then
   end)
 end
 local remote
-local latest={}
+latest={}
 local lastStatus=""
 local function renderFinder()
+  for key in pairs(stealActions) do stealActions[key]=nil end
 
   for _,v in ipairs(list:GetChildren()) do
     if v:IsA("Frame") then v:Destroy() end
@@ -719,7 +778,7 @@ local function renderFinder()
       locate.ZIndex=20
       locate.TextSize=13
       locate.Font=Enum.Font.GothamBlack
-      locate.MouseButton1Click:Connect(function()
+      local function triggerSteal()
         if _G.YafiPickupBusy then
           countLabel.Text="A pickup test is already running"
           return
@@ -846,7 +905,9 @@ local function renderFinder()
           end
           _G.YafiPickupBusy=false
         end)
-      end)
+      end
+      stealActions[egg.name]=triggerSteal
+      locate.MouseButton1Click:Connect(triggerSteal)
     end
   end
   list.CanvasSize=UDim2.fromOffset(0,shown*58+6)

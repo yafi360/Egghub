@@ -362,8 +362,8 @@ local hunterList=ui("ScrollingFrame",serverHunter,{
   BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=4,
   CanvasSize=UDim2.fromOffset(0,0),ZIndex=23})
 local hunterLayout=ui("UIListLayout",hunterList,{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder})
-local hunterButton=btn(finder,"SERVERS",340,44,130,24,P.blue)
-hunterButton.TextSize=11
+local hunterButton=btn(finder,"SERVERS",360,43,114,32,P.blue)
+hunterButton.TextSize=13
 hunterButton.ZIndex=20
 local HttpService=game:GetService("HttpService")
 local TeleportService=game:GetService("TeleportService")
@@ -562,7 +562,7 @@ local halloweenView=ui("Frame",finder,{Name="HalloweenInspector",
 round(halloweenView,10)
 local halloweenHeading=txt(halloweenView,"HALLOWEEN  /  EVENT INSPECTOR",10,8,405,25,15,P.cyan,true)
 halloweenHeading.ZIndex=36
-local halloweenInfo=txt(halloweenView,"Read-only scan of event objects and snapshot fields",10,34,438,23,11,P.muted)
+local halloweenInfo=txt(halloweenView,"Event records not yet confirmed. No unsafe STEAL links.",10,34,438,23,11,P.muted)
 halloweenInfo.ZIndex=36
 local halloweenScan=btn(halloweenView,"INSPECT EVENT",10,62,210,34,P.blue)
 halloweenScan.ZIndex=37
@@ -574,8 +574,8 @@ local halloweenList=ui("ScrollingFrame",halloweenView,{
  CanvasSize=UDim2.fromOffset(0,0),ZIndex=36})
 local halloweenLayout=ui("UIListLayout",halloweenList,{
  Padding=UDim.new(0,3),SortOrder=Enum.SortOrder.LayoutOrder})
-local halloweenButton=btn(finder,"🎃 EVENT",235,44,98,24,Color3.fromRGB(190,94,32))
-halloweenButton.TextSize=11
+local halloweenButton=btn(finder,"🎃 HALLOWEEN",219,43,136,32,Color3.fromRGB(190,94,32))
+halloweenButton.TextSize=13
 halloweenButton.ZIndex=20
 local function eventViewOpen(on)
  halloweenView.Visible=on
@@ -585,7 +585,7 @@ local function eventViewOpen(on)
  minIncome.Visible=not on
  refreshBtn.Visible=not on
  hunterButton.Visible=not on
- halloweenButton.Text=on and "LIVE EGGS" or "🎃 EVENT"
+ halloweenButton.Text=on and "LIVE EGGS" or "🎃 HALLOWEEN"
 end
 halloweenButton.MouseButton1Click:Connect(function()
  eventViewOpen(not halloweenView.Visible)

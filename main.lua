@@ -451,19 +451,10 @@ local function saveReports()
   pcall(function() writefile(privateFile,HttpService:JSONEncode(reports)) end)
 end
 loadReports()
-local privateButton=btn(serverHunter,"PRIVATE HUNTER",10,62,205,37,P.blue)
-privateButton.ZIndex=27
-hunterRefresh.Position=UDim2.fromOffset(10,62)
-hunterRefresh.Visible=true
-privateButton.Position=UDim2.fromOffset(10,62)
--- Existing FIND SERVERS button is retained; the private view lives above it
--- only when opened from the explicit PRIVATE tab below.
-privateButton.Position=UDim2.fromOffset(10,62)
 local privateTab=btn(serverHunter,"MY SCANS",12,40,210,32,P.blue)
 privateTab.ZIndex=28
 local publicTab=btn(serverHunter,"PUBLIC SERVERS",235,40,210,32,P.panel)
 publicTab.ZIndex=28
-privateButton.Visible=false
 local privateView=ui("Frame",serverHunter,{Size=UDim2.fromScale(1,1),BackgroundColor3=P.navy,
   BorderSizePixel=0,Visible=false,ZIndex=29})
 round(privateView,10)

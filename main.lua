@@ -145,7 +145,7 @@ local rarityColors={
  celestial="#82F8FF", exclusive="#FFB477"
 }
 local function rarityHex(rarity)
- local key=tostring(rarity or ""):lower():gsub("%s+","")
+ local key=tostring(rarity or ""):lower():gsub("<[^>]*>",""):gsub("%s+","")
  return rarityColors[key] or "#F0F8FF"
 end
 local function richSafe(s)
@@ -153,6 +153,7 @@ local function richSafe(s)
 end
 
 local database,dbCount={},0
+local databaseRarity={}
 local function normalize(s)
   return tostring(s or ""):lower():gsub("[^%w]","")
 end
@@ -187,6 +188,7 @@ local function fetchDatabase()
       local value=incomeNum(cells[4])
       if key~="" and value and cells[4]:find("%$") and not database[key] then
         database[key]=value
+        databaseRarity[key]=clean(cells[3] or "")
         dbCount=dbCount+1
       end
     end
@@ -261,8 +263,8 @@ local function renderFinder()
         Position=UDim2.fromOffset(59,0),Size=UDim2.new(1,-65,1,0),
         BackgroundTransparency=1,TextColor3=P.text,TextWrapped=true,
         RichText=true,TextXAlignment=Enum.TextXAlignment.Left,
-        Font=Enum.Font.GothamMedium,TextSize=13,ZIndex=18,
-        Text=string.format("%d. %s | %s <b>%s</b>\n%s | Size <b>%.2fx</b>",
+        Font=Enum.Font.GothamBold,TextSize=14,ZIndex=18,
+        Text=string.format("<b>%d.</b> %s | %s <b>%s</b>\n%s | Size <b>%.2fx</b>",
           shown,'<font color="'..rarityHex(egg.rarity)..'"><b>'..richSafe(egg.name)..'</b></font>',egg.income and "EST." or "BASE",
           money(value),richSafe(egg.mutation),egg.scale)
       })
@@ -302,7 +304,7 @@ local function refreshFinder()
       table.insert(eggs,{name=name,mutation=tostring(egg.BaseMutation or "None"),
         scale=tonumber(egg.AssetScale) or 1,base=gameBase or database[normalize(name)],
         income=earned(egg,gameBase),icon=type(def)=="table" and def.Icon or nil,
-        rarity=(type(def)=="table" and (def.Rarity or def.Tier)) or egg.Rarity or egg.Tier})
+        rarity=(type(def)=="table" and (def.Rarity or def.Tier or def.RarityName)) or egg.Rarity or egg.Tier or databaseRarity[normalize(name)]})
     end
   end
   table.sort(eggs,function(a,b)

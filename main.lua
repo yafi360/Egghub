@@ -343,6 +343,98 @@ local list=ui("ScrollingFrame",finder,{Position=UDim2.fromOffset(15,120),
   ZIndex=16})
 round(list,10)
 local listLayout=ui("UIListLayout",list,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
+-- SERVER HUNTER: public server browser. Other servers' egg contents are unknown
+-- until a player actually joins and reads that server's snapshot.
+local serverHunter=ui("Frame",finder,{Name="ServerHunter",Position=UDim2.fromOffset(15,120),
+  Size=UDim2.fromOffset(460,302),BackgroundColor3=P.navy,BorderSizePixel=0,
+  Visible=false,ZIndex=22})
+round(serverHunter,10)
+local hunterTitle=txt(serverHunter,"PUBLIC SERVERS  /  EGG DATA UNKNOWN",9,8,445,22,13,P.cyan,true)
+hunterTitle.ZIndex=23
+local hunterNote=txt(serverHunter,"Join a server to scan its eggs. No remote egg previews.",9,32,445,22,11,P.muted,false)
+hunterNote.ZIndex=23
+local hunterRefresh=btn(serverHunter,"FIND SERVERS",10,62,205,37,P.blue)
+hunterRefresh.ZIndex=24
+local hunterBack=btn(serverHunter,"BACK TO EGGS",226,62,224,37,P.panel)
+hunterBack.ZIndex=24
+local hunterList=ui("ScrollingFrame",serverHunter,{
+  Position=UDim2.fromOffset(9,108),Size=UDim2.fromOffset(442,185),
+  BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=4,
+  CanvasSize=UDim2.fromOffset(0,0),ZIndex=23})
+local hunterLayout=ui("UIListLayout",hunterList,{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder})
+local hunterButton=btn(finder,"SERVERS",340,44,130,24,P.blue)
+hunterButton.TextSize=11
+hunterButton.ZIndex=20
+local HttpService=game:GetService("HttpService")
+local TeleportService=game:GetService("TeleportService")
+local hunterBusy=false
+local function showHunter(on)
+  serverHunter.Visible=on
+  list.Visible=not on
+  petSearch.Visible=not on
+  minIncome.Visible=not on
+  refreshBtn.Visible=not on
+  hunterButton.Text=on and "LIVE EGGS" or "SERVERS"
+end
+hunterButton.MouseButton1Click:Connect(function()
+  showHunter(not serverHunter.Visible)
+end)
+hunterBack.MouseButton1Click:Connect(function() showHunter(false) end)
+local function fetchServers()
+  if hunterBusy then return end
+  hunterBusy=true
+  hunterNote.Text="Finding joinable public servers..."
+  for _,c in ipairs(hunterList:GetChildren()) do
+    if c:IsA("Frame") then c:Destroy() end
+  end
+  task.spawn(function()
+    local url="https://games.roblox.com/v1/games/"..tostring(game.PlaceId).."/servers/Public?sortOrder=Asc&limit=100"
+    local ok,data=pcall(function()
+      return HttpService:JSONDecode(game:HttpGet(url))
+    end)
+    if not gui.Parent then hunterBusy=false return end
+    if not ok or type(data)~="table" or type(data.data)~="table" then
+      hunterNote.Text="Server directory unavailable in this client."
+      hunterBusy=false
+      return
+    end
+    local servers={}
+    for _,sv in ipairs(data.data) do
+      if type(sv)=="table" and type(sv.id)=="string"
+        and sv.id~=game.JobId and (tonumber(sv.playing) or 999)<(tonumber(sv.maxPlayers) or 0) then
+        servers[#servers+1]=sv
+      end
+    end
+    table.sort(servers,function(a,b) return (a.playing or 999)<(b.playing or 999) end)
+    for index,sv in ipairs(servers) do
+      if index>25 then break end
+      local row=ui("Frame",hunterList,{Size=UDim2.new(1,-8,0,43),
+        BackgroundColor3=index%2==0 and P.panel or P.deep,BorderSizePixel=0,
+        LayoutOrder=index,ZIndex=24})
+      round(row,7)
+      local label=txt(row,tostring(sv.playing).."/"..tostring(sv.maxPlayers).." players | Eggs: unknown",9,6,310,31,12,P.text,true)
+      label.ZIndex=25
+      local hop=btn(row,"HOP",345,4,80,35,Color3.fromRGB(31,165,82))
+      hop.ZIndex=26
+      hop.MouseButton1Click:Connect(function()
+        if _G.YafiPickupBusy then
+          hunterNote.Text="Finish carrying your egg before hopping."
+          return
+        end
+        hunterNote.Text="Joining selected server (egg contents unknown)..."
+        local success,err=pcall(function()
+          TeleportService:TeleportToPlaceInstance(game.PlaceId,sv.id,player)
+        end)
+        if not success then hunterNote.Text="Hop rejected: "..tostring(err):sub(1,65) end
+      end)
+    end
+    hunterList.CanvasSize=UDim2.fromOffset(0,math.min(#servers,25)*48)
+    hunterNote.Text=tostring(#servers).." joinable servers found on first page; eggs unknown."
+    hunterBusy=false
+  end)
+end
+hunterRefresh.MouseButton1Click:Connect(fetchServers)
+
 -- Carry state is authoritative when this game version publishes the event.
 local carryObserved=false
 local carryingNow=nil

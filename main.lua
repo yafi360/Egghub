@@ -761,6 +761,29 @@ if carryEvent and carryEvent:IsA("RemoteEvent") then
     carryUpdatedAt=os.clock()
   end)
 end
+-- Manual movement immediately takes control back from the STEAL trip.
+local tripSerial=0
+local activeTripHumanoid=nil
+local function cancelTrip()
+ if not _G.YafiPickupBusy then return end
+ tripSerial=tripSerial+1
+ _G.YafiPickupBusy=false
+ local hum=activeTripHumanoid
+ activeTripHumanoid=nil
+ if hum and hum.Parent then
+  pcall(function() hum:MoveTo(hum.Parent.HumanoidRootPart.Position) end)
+ end
+ countLabel.Text="STEAL cancelled — manual movement restored"
+end
+UIS.InputBegan:Connect(function(input,processed)
+ if UIS:GetFocusedTextBox() then return end
+ local key=input.KeyCode
+ if key==Enum.KeyCode.W or key==Enum.KeyCode.A or key==Enum.KeyCode.S
+  or key==Enum.KeyCode.D or key==Enum.KeyCode.Up or key==Enum.KeyCode.Down
+  or key==Enum.KeyCode.Left or key==Enum.KeyCode.Right or key==Enum.KeyCode.Space then
+  cancelTrip()
+ end
+end)
 local remote
 latest={}
 local lastStatus=""
@@ -816,6 +839,8 @@ local function renderFinder()
           return
         end
         _G.YafiPickupBusy=true
+        tripSerial=tripSerial+1
+        local thisTrip=tripSerial
         task.spawn(function()
           local ok,err=pcall(function()
             local character=player.Character
@@ -825,6 +850,8 @@ local function renderFinder()
               countLabel.Text="Character not ready"
               return
             end
+            activeTripHumanoid=humanoid
+            if thisTrip~=tripSerial then return end
             local carryRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggCarry",true)
             local snapshotRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggSnapshot",true)
             if not carryRemote or not carryRemote:IsA("RemoteFunction") then
@@ -832,10 +859,21 @@ local function renderFinder()
               return
             end
             local function walkTo(pos,radius,deadline,label,watchCarry,carryStart,confirmedCarry)
+              local lastProgress=os.clock()
+              local bestDistance=math.huge
               while gui.Parent and os.clock()<deadline do
+                if thisTrip~=tripSerial or not _G.YafiPickupBusy then return false,"cancelled by movement key" end
                 if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then return false,"character unavailable" end
                 if watchCarry and confirmedCarry and carryObserved and carryingNow==false and carryUpdatedAt>carryStart then return false,"dropped" end
-                if (root.Position-pos).Magnitude<=radius then return true end
+                local distance=(root.Position-pos).Magnitude
+                if distance<=radius then return true end
+                if distance<bestDistance-2 then
+                  bestDistance=distance
+                  lastProgress=os.clock()
+                end
+                if os.clock()-lastProgress>7 then
+                  return false,"no route/progress (possible Halloween barrier)"
+                end
                 humanoid:MoveTo(pos)
                 task.wait(.25)
               end
@@ -888,9 +926,11 @@ local function renderFinder()
               countLabel.Text=(recoveries==0 and "Approaching " or "Recovering ")..egg.name
               local approached,why=walkTo(eggPos,9,os.clock()+50,"egg",false)
               if not approached then countLabel.Text="Could not reach egg: "..why return end
+              if thisTrip~=tripSerial then return end
               local carryStart=os.clock()
               carryingNow=nil -- Ignore carry state left over from a previous trip.
               local success,accepted,reason=pcall(function() return carryRemote:InvokeServer({Uid=uid}) end)
+              if thisTrip~=tripSerial then return end
               if not success or not accepted then
                 countLabel.Text="Pickup rejected: "..tostring(reason or accepted):sub(1,60)
                 return
@@ -921,10 +961,13 @@ local function renderFinder()
               recoveries=recoveries+1
             end
           end)
-          if not ok and gui.Parent then
+          if thisTrip==tripSerial and not ok and gui.Parent then
             countLabel.Text="Test error: "..tostring(err):sub(1,75)
           end
-          _G.YafiPickupBusy=false
+          if thisTrip==tripSerial then
+            _G.YafiPickupBusy=false
+            activeTripHumanoid=nil
+          end
         end)
       end
       stealActions[egg.name]=triggerSteal

@@ -341,7 +341,58 @@ local function renderFinder()
             elseif response==false or response==nil then
               countLabel.Text="Server rejected pickup: "..tostring(reason or "conditions not met"):sub(1,45)
             else
-              countLabel.Text="Pickup accepted for "..egg.name.." — check carried egg"
+              countLabel.Text="Egg picked up — finding your base..."
+              local plots=workspace:FindFirstChild("Plots")
+              local ownPlot
+              local stateRemote=RS:FindFirstChild("RF/Homestead/AskState",true)
+              if plots and stateRemote and stateRemote:IsA("RemoteFunction") then
+                local stateOK,state=pcall(function() return stateRemote:InvokeServer() end)
+                if stateOK and type(state)=="table" and type(state.OwnersBySlot)=="table" then
+                  for slot,owner in pairs(state.OwnersBySlot) do
+                    if tonumber(owner)==player.UserId then
+                      ownPlot=plots:FindFirstChild(tostring(slot))
+                      break
+                    end
+                  end
+                end
+              end
+              if plots and not ownPlot then
+                for _,plot in ipairs(plots:GetChildren()) do
+                  local sign=plot:FindFirstChild("PlotSign")
+                  if sign then
+                    for _,label in ipairs(sign:GetDescendants()) do
+                      if label:IsA("TextLabel") and label.Text==player.Name then
+                        ownPlot=plot
+                        break
+                      end
+                    end
+                  end
+                  if ownPlot then break end
+                end
+              end
+              local area=ownPlot and ownPlot:FindFirstChild("ToUpdate") and ownPlot.ToUpdate:FindFirstChild("PetArea")
+              if not area or not area:IsA("BasePart") then
+                countLabel.Text="Picked up "..egg.name.." — could not identify your base"
+                return
+              end
+              local target=area.Position
+              countLabel.Text="Carrying "..egg.name.." home..."
+              local homeDeadline=os.clock()+65
+              while gui.Parent and os.clock()<homeDeadline do
+                if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then
+                  countLabel.Text="Return interrupted: character unavailable"
+                  return
+                end
+                local remaining=(root.Position-target).Magnitude
+                if remaining<=5 then break end
+                humanoid:MoveTo(target)
+                task.wait(.45)
+              end
+              if (root.Position-target).Magnitude<=5 then
+                countLabel.Text="Reached your base with "..egg.name.." — verify claim"
+              else
+                countLabel.Text="Return incomplete — move to your base manually"
+              end
             end
           end)
           if not ok and gui.Parent then

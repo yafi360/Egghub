@@ -2,6 +2,7 @@
 -- Cosmetic interface only. Roblox LocalScript.
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
+local PathfindingService = game:GetService("PathfindingService")
 local player = Players.LocalPlayer
 if not player then return end
 local parent = player:WaitForChild("PlayerGui")
@@ -211,8 +212,8 @@ local finderButton=btn(tools,"OPEN EGG FINDER",16,81,274,42,P.blue)
 txt(tools,"Refreshes every 5 seconds when open.",17,137,274,22,11,P.muted)
 
 -- An expanded overlay preserves the V4 hub's compact navigation.
-local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(.5,.5),
-  Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(490,440),
+local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(1,0),
+  Position=UDim2.new(1,-12,0,47),Size=UDim2.fromOffset(490,440),
   BackgroundColor3=P.deep,BorderSizePixel=0,Visible=false,ZIndex=15})
 round(finder,17)
 line(finder,P.cyan,2)
@@ -282,6 +283,46 @@ local function renderFinder()
       locate.ZIndex=20
       locate.TextSize=13
       locate.Font=Enum.Font.GothamBlack
+      local function walkSmart(humanoid,root,target,arrival,seconds,phase)
+        local deadline=os.clock()+seconds
+        local attempts=0
+        while gui.Parent and os.clock()<deadline do
+          if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then return false,"character unavailable" end
+          if (root.Position-target).Magnitude<=arrival then return true end
+          attempts=attempts+1
+          countLabel.Text=phase.." (route "..attempts..")"
+          local path=PathfindingService:CreatePath({AgentRadius=2,AgentHeight=5,AgentCanJump=true,WaypointSpacing=5})
+          local computed=pcall(function() path:ComputeAsync(root.Position,target) end)
+          local points={}
+          if computed and path.Status==Enum.PathStatus.Success then
+            points=path:GetWaypoints()
+          else
+            points={{Position=target,Action=Enum.PathWaypointAction.Walk}}
+          end
+          local blocked=false
+          for _,point in ipairs(points) do
+            if (root.Position-target).Magnitude<=arrival then return true end
+            if not gui.Parent or os.clock()>deadline then break end
+            if point.Action==Enum.PathWaypointAction.Jump then humanoid.Jump=true end
+            humanoid:MoveTo(point.Position)
+            local waypointDeadline=math.min(deadline,os.clock()+math.max(2.5,(root.Position-point.Position).Magnitude/math.max(8,humanoid.WalkSpeed)*2.5))
+            local previous=root.Position
+            local stagnation=0
+            while os.clock()<waypointDeadline and gui.Parent do
+              if (root.Position-target).Magnitude<=arrival then return true end
+              if (root.Position-point.Position).Magnitude<=3.5 then break end
+              task.wait(.2)
+              if (root.Position-previous).Magnitude<.45 then stagnation=stagnation+.2 else stagnation=0 end
+              previous=root.Position
+              if stagnation>=1.8 then blocked=true break end
+              if humanoid.Health<=0 then return false,"character died" end
+            end
+            if blocked or (root.Position-point.Position).Magnitude>5 then break end
+          end
+          task.wait(.2)
+        end
+        return false,"route blocked or timed out"
+      end
       locate.MouseButton1Click:Connect(function()
         if _G.YafiPickupBusy then
           countLabel.Text="A pickup test is already running"
@@ -309,21 +350,9 @@ local function renderFinder()
               return
             end
             local destination=cf.Position
-            local limit=os.clock()+35
-            countLabel.Text="Walking to "..egg.name.." (current server)"
-            while gui.Parent and os.clock()<limit do
-              local dist=(root.Position-destination).Magnitude
-              if dist<=9 then break end
-              humanoid:MoveTo(destination)
-              task.wait(.45)
-              if humanoid.Health<=0 then
-                countLabel.Text="Character died; pickup cancelled"
-                return
-              end
-            end
-            local distance=(root.Position-destination).Magnitude
-            if distance>9 then
-              countLabel.Text=string.format("Could not reach %s (%.0f studs away)",egg.name,distance)
+            local arrived,travelError=walkSmart(humanoid,root,destination,9,60,"Navigating to "..egg.name)
+            if not arrived then
+              countLabel.Text="Cannot reach "..egg.name..": "..tostring(travelError)
               return
             end
             local carryRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggCarry",true)
@@ -377,21 +406,11 @@ local function renderFinder()
               end
               local target=area.Position
               countLabel.Text="Carrying "..egg.name.." home..."
-              local homeDeadline=os.clock()+65
-              while gui.Parent and os.clock()<homeDeadline do
-                if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then
-                  countLabel.Text="Return interrupted: character unavailable"
-                  return
-                end
-                local remaining=(root.Position-target).Magnitude
-                if remaining<=5 then break end
-                humanoid:MoveTo(target)
-                task.wait(.45)
-              end
-              if (root.Position-target).Magnitude<=5 then
+              local reached,homeError=walkSmart(humanoid,root,target,5,100,"Returning "..egg.name.." home")
+              if reached then
                 countLabel.Text="Reached your base with "..egg.name.." — verify claim"
               else
-                countLabel.Text="Return incomplete — move to your base manually"
+                countLabel.Text="Return incomplete: "..tostring(homeError)
               end
             end
           end)

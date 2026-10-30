@@ -283,89 +283,35 @@ local function renderFinder()
       locate.TextSize=13
       locate.Font=Enum.Font.GothamBlack
       locate.MouseButton1Click:Connect(function()
-        local raw=egg.raw or {}
-        local ids={}
-        local position
-        local fields={}
-        for key,value in pairs(raw) do
-          fields[#fields+1]=tostring(key)
-          local lk=tostring(key):lower()
-          if type(value)=="string" or type(value)=="number" then
-            if lk:find("id") or lk:find("guid") or lk:find("uid") then
-              ids[tostring(value)]=true
-            end
-          elseif typeof(value)=="Vector3" then
-            if lk:find("pos") or lk:find("location") then position=value end
-          elseif typeof(value)=="CFrame" then
-            if lk:find("pos") or lk:find("cframe") then position=value.Position end
-          end
-        end
-        local realIds={}
-        for id in pairs(ids) do realIds[#realIds+1]=id end
-        -- Record keys may simply be array indices, so do not assume they identify a physical egg.
-        local target,part,prompt
-        local nearest=math.huge
-        local root=player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        local function inspect(obj)
-          local matched=false
-          for k,v in pairs(obj:GetAttributes()) do
-            if ids[tostring(v)] and (tostring(k):lower():find("id") or tostring(k):lower():find("guid")) then
-              matched=true break
-            end
-          end
-          if not matched then
-            for _,child in ipairs(obj:GetChildren()) do
-              if child:IsA("StringValue") or child:IsA("IntValue") or child:IsA("NumberValue") then
-                if ids[tostring(child.Value)] and (child.Name:lower():find("id") or child.Name:lower():find("guid")) then
-                  matched=true break
-                end
-              end
-            end
-          end
-          if matched then
-            local p=obj:IsA("BasePart") and obj or (obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)))
-            if p then
-              local d=position and (p.Position-position).Magnitude or (root and (p.Position-root.Position).Magnitude or 0)
-              if d<nearest then
-                nearest=d target=obj part=p
-                prompt=obj:FindFirstChildWhichIsA("ProximityPrompt",true) or (obj.Parent and obj.Parent:FindFirstChildWhichIsA("ProximityPrompt",true))
-              end
-            end
-          end
-        end
-        if #realIds>0 then
-          for _,obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("Model") or obj:IsA("BasePart") then inspect(obj) end
-          end
-        end
-        local old=workspace:FindFirstChild("YafiPetLocateHighlight")
-        if old then old:Destroy() end
-        if not target then
-          table.sort(fields)
-          countLabel.Text="No exact world match | fields: "..table.concat(fields,", "):sub(1,110)
-          warn("[Yafi Egg Hub] Snapshot diagnostic:",egg.name,
-            "recordKey:",egg.recordKey,"candidateIDs:",table.concat(realIds,", "),
-            "fields:",table.concat(fields,", "))
+        local uid=egg.raw and (egg.raw.Uid or egg.raw.UID or egg.raw.uid)
+        if uid==nil then
+          countLabel.Text="Egg has no Uid; pickup not attempted"
           return
         end
-        local h=Instance.new("Highlight")
-        h.Name="YafiPetLocateHighlight"
-        h.FillColor=P.cyan
-        h.OutlineColor=P.blue
-        h.Adornee=target
-        h.Parent=workspace
-        if not root then countLabel.Text="Egg identified; avatar not ready" return end
-        local ok=pcall(function() root.CFrame=part.CFrame*CFrame.new(0,3,5) end)
-        if not ok then countLabel.Text="Egg identified, but unable to approach" return end
-        if prompt then
-          countLabel.Text="At matching egg; use pickup prompt"
-          if type(fireproximityprompt)=="function" then
-            local fired=pcall(function() fireproximityprompt(prompt) end)
-            if fired then countLabel.Text="Pickup interaction sent; verify egg in inventory" end
-          end
-        else
-          countLabel.Text="Exact egg found; no pickup prompt detected"
+        local carryRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggCarry",true)
+        if not carryRemote then
+          countLabel.Text="Carry remote not found in this version"
+          return
         end
+        countLabel.Text="Testing carry for "..egg.name.." ..."
+        task.spawn(function()
+          local ok,response=pcall(function()
+            if carryRemote:IsA("RemoteFunction") then
+              return carryRemote:InvokeServer({Uid=uid})
+            elseif carryRemote:IsA("RemoteEvent") then
+              carryRemote:FireServer({Uid=uid})
+              return "sent"
+            else error("unsupported remote") end
+          end)
+          if not gui.Parent then return end
+          if not ok then
+            countLabel.Text="Carry failed: "..tostring(response):sub(1,85)
+          elseif response==false then
+            countLabel.Text="Server rejected carry for "..egg.name
+          else
+            countLabel.Text="Carry request sent for "..egg.name.." - verify in game"
+          end
+        end)
       end)
     end
   end

@@ -369,11 +369,14 @@ local HttpService=game:GetService("HttpService")
 local TeleportService=game:GetService("TeleportService")
 local hunterBusy=false
 local function showHunter(on)
+  halloweenView.Visible=false
+  halloweenButton.Text="🎃 EVENT"
   serverHunter.Visible=on
   list.Visible=not on
   petSearch.Visible=not on
   minIncome.Visible=not on
   refreshBtn.Visible=not on
+  hunterButton.Visible=true
   hunterButton.Text=on and "LIVE EGGS" or "SERVERS"
 end
 hunterButton.MouseButton1Click:Connect(function()
@@ -553,6 +556,108 @@ publicTab.MouseButton1Click:Connect(function() privateView.Visible=false end)
 showPublic.MouseButton1Click:Connect(function() privateView.Visible=false end)
 -- Rejoin needs a fresh load unless the user's client supports autorun on teleport.
 -- We do not automatically hop to unknown servers or assume reports stay live.
+
+-- Halloween inspector: read-only discovery, no unverified remote calls.
+local halloweenView=ui("Frame",finder,{Name="HalloweenInspector",
+  Position=UDim2.fromOffset(15,120),Size=UDim2.fromOffset(460,302),
+  BackgroundColor3=P.navy,BorderSizePixel=0,Visible=false,ZIndex=35})
+round(halloweenView,10)
+local halloweenHeading=txt(halloweenView,"HALLOWEEN  /  EVENT INSPECTOR",10,8,405,25,15,P.cyan,true)
+halloweenHeading.ZIndex=36
+local halloweenInfo=txt(halloweenView,"Read-only scan of event objects and snapshot fields",10,34,438,23,11,P.muted)
+halloweenInfo.ZIndex=36
+local halloweenScan=btn(halloweenView,"INSPECT EVENT",10,62,210,34,P.blue)
+halloweenScan.ZIndex=37
+local halloweenBack=btn(halloweenView,"BACK TO EGGS",232,62,215,34,P.panel)
+halloweenBack.ZIndex=37
+local halloweenList=ui("ScrollingFrame",halloweenView,{
+ Position=UDim2.fromOffset(10,106),Size=UDim2.fromOffset(438,187),
+ BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=4,
+ CanvasSize=UDim2.fromOffset(0,0),ZIndex=36})
+local halloweenLayout=ui("UIListLayout",halloweenList,{
+ Padding=UDim.new(0,3),SortOrder=Enum.SortOrder.LayoutOrder})
+local halloweenButton=btn(finder,"🎃 EVENT",235,44,98,24,Color3.fromRGB(190,94,32))
+halloweenButton.TextSize=11
+halloweenButton.ZIndex=20
+local function eventViewOpen(on)
+ halloweenView.Visible=on
+ serverHunter.Visible=false
+ list.Visible=not on
+ petSearch.Visible=not on
+ minIncome.Visible=not on
+ refreshBtn.Visible=not on
+ hunterButton.Visible=not on
+ halloweenButton.Text=on and "LIVE EGGS" or "🎃 EVENT"
+end
+halloweenButton.MouseButton1Click:Connect(function()
+ eventViewOpen(not halloweenView.Visible)
+end)
+halloweenBack.MouseButton1Click:Connect(function() eventViewOpen(false) end)
+local function inspectHalloween()
+ for _,v in ipairs(halloweenList:GetChildren()) do
+  if v:IsA("TextLabel") then v:Destroy() end
+ end
+ local lines={}
+ local function add(s)
+  if #lines<100 then lines[#lines+1]=s end
+ end
+ add("READ ONLY | No pickups or unknown remotes called")
+ local keys={"halloween","haunted","grave","phantom","pumpkin","spectral","event","swamp","manor"}
+ local function relevant(value)
+  local lower=tostring(value):lower()
+  for _,key in ipairs(keys) do if lower:find(key,1,true) then return true end end
+  return false
+ end
+ local hits=0
+ for _,scope in ipairs({RS,workspace}) do
+  for _,obj in ipairs(scope:GetDescendants()) do
+   if relevant(obj.Name) then
+    hits=hits+1
+    if hits<=25 then add(obj.ClassName.." | "..obj:GetFullName():sub(1,100)) end
+   end
+  end
+ end
+ add("Event-related named objects: "..hits)
+ local snapshot=RS:FindFirstChild("RF/EggWorld/AskFieldEggSnapshot",true)
+ if snapshot and snapshot:IsA("RemoteFunction") then
+  local ok,data=pcall(function() return snapshot:InvokeServer() end)
+  if ok and type(data)=="table" and type(data.Records)=="table" then
+   local count,eventCount,areas=0,0,{}
+   for _,rec in pairs(data.Records) do
+    if type(rec)=="table" then
+     count=count+1
+     local matched=false
+     for key,val in pairs(rec) do
+      if (type(val)=="string" or type(val)=="number") and relevant(val) then
+       matched=true
+       areas[tostring(key).."="..tostring(val)]=true
+      end
+     end
+     if matched then eventCount=eventCount+1 end
+    end
+   end
+   add("World snapshot: "..count.." records, "..eventCount.." event matches")
+   local printed=0
+   for value in pairs(areas) do
+    printed=printed+1
+    if printed>12 then break end
+    add("Field: "..value:sub(1,100))
+   end
+  else
+   add("World snapshot unavailable")
+  end
+ else add("World snapshot remote not found") end
+ if hits==0 then add("No named event objects replicated to this client") end
+ for i,entry in ipairs(lines) do
+  local label=txt(halloweenList,entry,4,0,422,22,11,P.text,false)
+  label.Size=UDim2.new(1,-12,0,22)
+  label.LayoutOrder=i
+  label.ZIndex=37
+ end
+ halloweenList.CanvasSize=UDim2.fromOffset(0,#lines*25)
+ halloweenInfo.Text="Found "..hits.." named objects. Results don't prove a pickup API."
+end
+halloweenScan.MouseButton1Click:Connect(inspectHalloween)
 
 -- Carry state is authoritative when this game version publishes the event.
 local carryObserved=false

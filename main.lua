@@ -111,78 +111,170 @@ local statusDot=ui("Frame",home,{Position=UDim2.fromOffset(18,187),Size=UDim2.fr
 round(statusDot,5)
 txt(home,"READY TO EXPLORE",34,179,245,23,12,P.green,true)
 
--- Pet Finder searches model names currently replicated to this client.
--- No remote/server-only or undiscovered pets can be detected this way.
-txt(tools,"PET FINDER",17,11,265,26,17,P.text,true)
-txt(tools,"Search nearby loaded pet models",17,36,272,20,11,P.muted)
-local searchInput=ui("TextBox",tools,{
-  Name="PetSearch",Position=UDim2.fromOffset(15,68),Size=UDim2.fromOffset(184,39),
-  BackgroundColor3=P.panel,BorderSizePixel=0,ClearTextOnFocus=false,
-  PlaceholderText="Pet name...",Text="",TextSize=13,Font=Enum.Font.GothamMedium,
-  TextColor3=P.text,PlaceholderColor3=P.muted,TextXAlignment=Enum.TextXAlignment.Left})
-round(searchInput,9)
-line(searchInput,P.line)
-ui("UIPadding",searchInput,{PaddingLeft=UDim.new(0,10)})
-local findButton=btn(tools,"FIND",205,68,86,39,P.blue)
-local resultCard=ui("Frame",tools,{Position=UDim2.fromOffset(15,116),Size=UDim2.fromOffset(276,97),
- BackgroundColor3=P.panel,BorderSizePixel=0})
-round(resultCard,11)
-line(resultCard,P.line)
-local resultTitle=txt(resultCard,"ENTER A PET NAME",12,8,254,19,12,P.cyan,true)
-local rows={}
-for i=1,3 do
- rows[i]=txt(resultCard,"",12,10+i*20,253,20,11,P.muted)
+-- EGG FINDER: restored from EggFinder_V6.lua (current-server snapshot)
+local RS=game:GetService("ReplicatedStorage")
+local database,dbCount={},0
+local function normalize(s)
+  return tostring(s or ""):lower():gsub("[^%w]","")
 end
-local activeHighlight
-local function findPet()
-  if activeHighlight then activeHighlight:Destroy() activeHighlight=nil end
-  local query=searchInput.Text:lower():match("^%s*(.-)%s*$")
-  if query=="" then
-    resultTitle.Text="TYPE A PET NAME FIRST"
-    for _,r in ipairs(rows) do r.Text="" end
+local function incomeNum(s)
+  s=tostring(s or ""):gsub(",","")
+  local v,unit=s:match("%$?%s*([%d%.]+)%s*([KkMmBbTt]?)%s*/?s?")
+  if not v then return nil end
+  return tonumber(v)*(({K=1e3,M=1e6,B=1e9,T=1e12})[unit:upper()] or 1)
+end
+local function money(n)
+  if not n then return "Unknown base" end
+  if n>=1e12 then return string.format("$%.2fT/s",n/1e12) end
+  if n>=1e9 then return string.format("$%.2fB/s",n/1e9) end
+  if n>=1e6 then return string.format("$%.2fM/s",n/1e6) end
+  if n>=1e3 then return string.format("$%.2fK/s",n/1e3) end
+  return string.format("$%.0f/s",n)
+end
+local function clean(s)
+  return tostring(s or ""):gsub("<[^>]*>",""):gsub("&amp;","&")
+    :gsub("&nbsp;"," "):gsub("^%s+",""):gsub("%s+$","")
+end
+local function fetchDatabase()
+  local ok,html=pcall(function() return game:HttpGet("https://stealaneggindex.com/") end)
+  if not ok or type(html)~="string" then return end
+  for tr in html:gmatch("<tr[^>]*>(.-)</tr>") do
+    local cells={}
+    for td in tr:gmatch("<td[^>]*>(.-)</td>") do
+      cells[#cells+1]=clean(td)
+    end
+    if #cells>=4 then
+      local key=normalize(cells[2])
+      local value=incomeNum(cells[4])
+      if key~="" and value and cells[4]:find("%$") and not database[key] then
+        database[key]=value
+        dbCount=dbCount+1
+      end
+    end
+  end
+end
+
+txt(tools,"LIVE EGG FINDER",17,11,270,25,17,P.text,true)
+txt(tools,"Current server • ranked by base $/s",17,40,270,20,11,P.muted)
+local finderButton=btn(tools,"OPEN EGG FINDER",16,81,274,42,P.blue)
+txt(tools,"Refreshes every 5 seconds when open.",17,137,274,22,11,P.muted)
+
+-- An expanded overlay preserves the V4 hub's compact navigation.
+local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(.5,.5),
+  Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(490,440),
+  BackgroundColor3=P.deep,BorderSizePixel=0,Visible=false,ZIndex=15})
+round(finder,17)
+line(finder,P.cyan,2)
+txt(finder,"EGG FINDER  /  LIVE SERVER",17,11,395,29,17,P.text,true).ZIndex=16
+local finderClose=btn(finder,"X",447,12,30,29,Color3.fromRGB(85,43,76))
+finderClose.ZIndex=17
+local countLabel=txt(finder,"Loading...",17,46,460,22,12,P.cyan)
+countLabel.ZIndex=16
+local petSearch=ui("TextBox",finder,{
+  Position=UDim2.fromOffset(15,75),Size=UDim2.fromOffset(268,35),
+  Text="",PlaceholderText="Filter pets by name...",ClearTextOnFocus=false,
+  Font=Enum.Font.GothamMedium,TextSize=13,TextColor3=P.text,
+  PlaceholderColor3=P.muted,BackgroundColor3=P.panel,
+  BorderSizePixel=0,ZIndex=16})
+round(petSearch,9)
+ui("UIPadding",petSearch,{PaddingLeft=UDim.new(0,9)})
+local minIncome=ui("TextBox",finder,{
+  Position=UDim2.fromOffset(289,75),Size=UDim2.fromOffset(125,35),
+  Text="",PlaceholderText="Min $/s",ClearTextOnFocus=false,
+  Font=Enum.Font.GothamMedium,TextSize=13,TextColor3=P.text,
+  PlaceholderColor3=P.muted,BackgroundColor3=P.panel,
+  BorderSizePixel=0,ZIndex=16})
+round(minIncome,9)
+ui("UIPadding",minIncome,{PaddingLeft=UDim.new(0,9)})
+local refreshBtn=btn(finder,"↻",424,75,50,35,P.blue)
+refreshBtn.ZIndex=16
+local list=ui("ScrollingFrame",finder,{Position=UDim2.fromOffset(15,120),
+  Size=UDim2.fromOffset(460,302),BackgroundColor3=P.navy,
+  BorderSizePixel=0,ScrollBarThickness=5,CanvasSize=UDim2.fromOffset(0,0),
+  ZIndex=16})
+round(list,10)
+local listLayout=ui("UIListLayout",list,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
+local remote
+local latest={}
+local lastStatus=""
+local function renderFinder()
+  for _,v in ipairs(list:GetChildren()) do
+    if v:IsA("TextLabel") then v:Destroy() end
+  end
+  local query=normalize(petSearch.Text)
+  local minimum=incomeNum(minIncome.Text) or tonumber(minIncome.Text) or 0
+  local shown=0
+  for _,egg in ipairs(latest) do
+    if (query=="" or normalize(egg.name):find(query,1,true))
+      and (not egg.base or egg.base>=minimum) then
+      shown=shown+1
+      local row=ui("TextLabel",list,{
+        Size=UDim2.new(1,-7,0,54),BackgroundColor3=shown%2==0 and P.panel or P.deep,
+        BorderSizePixel=0,Font=Enum.Font.GothamMedium,TextSize=13,
+        TextColor3=P.text,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,
+        Text=string.format("  %d. %s   •   %s\n  BASE %s   |   SIZE %.2fx",
+           shown,egg.name,egg.mutation,money(egg.base),egg.scale),
+        LayoutOrder=shown,ZIndex=17})
+      round(row,7)
+    end
+  end
+  list.CanvasSize=UDim2.fromOffset(0,shown*58+6)
+  countLabel.Text=lastStatus.." | Showing "..shown
+end
+local running=false
+local function refreshFinder()
+  if running then return end
+  running=true
+  if not remote or not remote.Parent then
+    remote=RS:FindFirstChild("RF/EggWorld/AskFieldEggSnapshot",true)
+  end
+  if not remote or not remote:IsA("RemoteFunction") then
+    lastStatus="Egg snapshot unavailable"
+    latest={}
+    renderFinder()
+    running=false
     return
   end
-  local matches={}
-  local char=player.Character
-  for _,obj in ipairs(workspace:GetDescendants()) do
-    if obj:IsA("Model") and obj~=char and (not char or not obj:IsDescendantOf(char))
-      and obj.Name:lower():find(query,1,true) then
-      table.insert(matches,obj)
-      if #matches>=30 then break end
+  local ok,result=pcall(function() return remote:InvokeServer() end)
+  if not ok or type(result)~="table" or type(result.Records)~="table" then
+    lastStatus="Unable to read server eggs"
+    latest={}
+    renderFinder()
+    running=false
+    return
+  end
+  local eggs={}
+  for _,egg in pairs(result.Records) do
+    if type(egg)=="table" then
+      local name=tostring(egg.AssetCategory or "Unknown")
+      table.insert(eggs,{name=name,mutation=tostring(egg.BaseMutation or "None"),
+        scale=tonumber(egg.AssetScale) or 1,base=database[normalize(name)]})
     end
   end
-  table.sort(matches,function(a,b)
-    local root=char and char:FindFirstChild("HumanoidRootPart")
-    local function distance(m)
-      local p=m.PrimaryPart or m:FindFirstChildWhichIsA("BasePart",true)
-      return (root and p) and (p.Position-root.Position).Magnitude or math.huge
-    end
-    return distance(a)<distance(b)
+  table.sort(eggs,function(a,b)
+    if (a.base or -1)~=(b.base or -1) then return (a.base or -1)>(b.base or -1) end
+    if a.scale~=b.scale then return a.scale>b.scale end
+    return a.name<b.name
   end)
-  resultTitle.Text=#matches>0 and ("MATCHES FOUND: "..#matches) or "NO VISIBLE MATCHES"
-  for i,r in ipairs(rows) do
-    local m=matches[i]
-    if m then
-      local part=m.PrimaryPart or m:FindFirstChildWhichIsA("BasePart",true)
-      local root=char and char:FindFirstChild("HumanoidRootPart")
-      local distance=(part and root) and math.floor((part.Position-root.Position).Magnitude) or nil
-      r.Text=m.Name..(distance and ("  •  "..distance.." studs") or "")
-    else r.Text="" end
-  end
-  if matches[1] then
-    activeHighlight=Instance.new("Highlight")
-    activeHighlight.Name="YafiPetFinderHighlight"
-    activeHighlight.Adornee=matches[1]
-    activeHighlight.FillColor=P.cyan
-    activeHighlight.FillTransparency=.65
-    activeHighlight.OutlineColor=P.blue
-    activeHighlight.DepthMode=Enum.HighlightDepthMode.Occluded
-    activeHighlight.Parent=gui
-  end
+  latest=eggs
+  lastStatus=string.format("%d eggs • %d values",#eggs,dbCount)
+  renderFinder()
+  running=false
 end
-findButton.MouseButton1Click:Connect(findPet)
-searchInput.FocusLost:Connect(function(enter)
-  if enter then findPet() end
+finderButton.MouseButton1Click:Connect(function()
+  finder.Visible=true
+  task.spawn(refreshFinder)
+end)
+finderClose.MouseButton1Click:Connect(function() finder.Visible=false end)
+petSearch:GetPropertyChangedSignal("Text"):Connect(renderFinder)
+minIncome:GetPropertyChangedSignal("Text"):Connect(renderFinder)
+refreshBtn.MouseButton1Click:Connect(function() task.spawn(refreshFinder) end)
+task.spawn(function()
+  fetchDatabase()
+  while gui.Parent do
+    if finder.Visible then refreshFinder() end
+    task.wait(5)
+  end
 end)
 
 txt(settings,"CUSTOMIZE",17,16,270,27,17,P.text,true)
@@ -256,4 +348,4 @@ UIS.InputChanged:Connect(function(input)
       main.Position.Y.Scale,main.Position.Y.Offset+8)
   end
 end)
-print("Yafi Egg Hub V4.0 loaded")
+print("Yafi Egg Hub V4 with live Egg Finder loaded")

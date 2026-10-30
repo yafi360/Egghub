@@ -216,23 +216,39 @@ local finderButton=btn(tools,"OPEN EGG FINDER",16,81,274,42,P.blue)
 txt(tools,"Refreshes every 5 seconds when open.",17,137,274,22,11,P.muted)
 
 -- Compact launcher above the game's egg menu (right-side HUD).
-local eggLauncher=btn(gui,"🥚",0,0,49,49,P.blue)
+local eggLauncher=btn(gui,"",0,0,48,48,P.deep)
 eggLauncher.Name="EggFinderLauncher"
 eggLauncher.AnchorPoint=Vector2.new(1,0.5)
-eggLauncher.Position=UDim2.new(1,-94,0.34,0)
-eggLauncher.Size=UDim2.fromOffset(49,49)
-eggLauncher.TextSize=25
+-- Above the game's right-side egg button; launcher remains visible when finder is closed.
+eggLauncher.Position=UDim2.new(1,-38,0.285,0)
+eggLauncher.Size=UDim2.fromOffset(48,48)
 eggLauncher.ZIndex=30
 line(eggLauncher,P.cyan,2)
-local launcherBadge=txt(eggLauncher,"Y",35,31,12,15,10,P.text,true)
-launcherBadge.ZIndex=31
+local ball=ui("Frame",eggLauncher,{AnchorPoint=Vector2.new(.5,.5),
+  Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(33,33),
+  BackgroundColor3=Color3.fromRGB(247,248,250),BorderSizePixel=0,
+  ClipsDescendants=true,ZIndex=31})
+round(ball,19)
+local redHalf=ui("Frame",ball,{Size=UDim2.new(1,0,.50,0),
+  BackgroundColor3=Color3.fromRGB(231,55,65),BorderSizePixel=0,ZIndex=32})
+local seam=ui("Frame",ball,{Position=UDim2.new(0,0,.47,0),Size=UDim2.new(1,0,0,4),
+  BackgroundColor3=Color3.fromRGB(24,28,42),BorderSizePixel=0,ZIndex=33})
+local center=ui("Frame",ball,{AnchorPoint=Vector2.new(.5,.5),
+  Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(12,12),
+  BackgroundColor3=Color3.fromRGB(24,28,42),BorderSizePixel=0,ZIndex=34})
+round(center,7)
+local dot=ui("Frame",center,{AnchorPoint=Vector2.new(.5,.5),
+  Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(6,6),
+  BackgroundColor3=Color3.fromRGB(250,250,250),BorderSizePixel=0,ZIndex=35})
+round(dot,4)
 
 -- An expanded overlay preserves the V4 hub's compact navigation.
 local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(1,0),
-  Position=UDim2.new(1,-12,0,47),Size=UDim2.fromOffset(490,440),
+  Position=UDim2.new(1,-95,0,62),Size=UDim2.fromOffset(490,440),
   BackgroundColor3=P.deep,BorderSizePixel=0,Visible=false,ZIndex=15})
 round(finder,17)
 line(finder,P.cyan,2)
+ui("UIScale",finder,{Scale=.76})
 local titleBar=ui("Frame",finder,{Size=UDim2.new(1,0,0,42),BackgroundColor3=Color3.fromRGB(167,32,45),BorderSizePixel=0,ZIndex=16})
 round(titleBar,16)
 txt(titleBar,"STEAL PANEL  /  YAFI",17,6,360,29,20,P.text,true).ZIndex=17

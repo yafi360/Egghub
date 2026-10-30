@@ -270,7 +270,7 @@ local function renderFinder()
         BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,
         Image=iconId(egg.icon),ZIndex=18})
       ui("TextLabel",row,{
-        Position=UDim2.fromOffset(146,0),Size=UDim2.new(1,-153,1,0),
+        Position=UDim2.fromOffset(59,0),Size=UDim2.new(1,-156,1,0),
         BackgroundTransparency=1,TextColor3=P.text,TextWrapped=true,
         RichText=true,TextXAlignment=Enum.TextXAlignment.Left,
         Font=Enum.Font.GothamBlack,TextSize=15,ZIndex=18,
@@ -278,7 +278,7 @@ local function renderFinder()
           shown,'<font color="'..rarityHex(egg.rarity)..'"><b>'..richSafe(egg.name)..'</b></font>',egg.income and "EST." or "BASE",
           money(value),richSafe(egg.mutation),egg.scale)
       })
-      local locate=btn(row,"STEAL",57,10,82,34,P.blue)
+      local locate=btn(row,"STEAL",362,10,84,34,P.blue)
       locate.ZIndex=20
       locate.TextSize=13
       locate.Font=Enum.Font.GothamBlack

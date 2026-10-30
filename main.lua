@@ -594,6 +594,7 @@ end
 local halloweenButton=btn(finder,"🎃 HALLOWEEN",122,49,132,36,Color3.fromRGB(190,94,32))
 halloweenButton.TextSize=13
 halloweenButton.ZIndex=20
+local alertsView
 eventViewOpen=function(on)
  halloweenView.Visible=on
  alertsView.Visible=false
@@ -618,7 +619,7 @@ hunterButton.MouseButton1Click:Connect(function()
 end)
 halloweenBack.MouseButton1Click:Connect(function() eventViewOpen(false) end)
 -- Community live sightings: third-party reports only, never verified server inventories.
-local alertsView=ui("Frame",finder,{Name="LiveEggAlerts",
+alertsView=ui("Frame",finder,{Name="LiveEggAlerts",
  Position=UDim2.fromOffset(15,164),Size=UDim2.fromOffset(460,328),
  BackgroundColor3=Color3.fromRGB(35,40,65),BorderSizePixel=0,Visible=false,ZIndex=40})
 round(alertsView,10)

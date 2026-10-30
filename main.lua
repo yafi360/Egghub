@@ -346,12 +346,14 @@ local listLayout=ui("UIListLayout",list,{Padding=UDim.new(0,4),SortOrder=Enum.So
 -- Carry state is authoritative when this game version publishes the event.
 local carryObserved=false
 local carryingNow=nil
+local carryUpdatedAt=0
 local carryEvent=RS:FindFirstChild("Eggs: AreaEggCarryState",true)
   or RS:FindFirstChild("RE/EggWorld/FieldEggCarryState",true)
 if carryEvent and carryEvent:IsA("RemoteEvent") then
   carryEvent.OnClientEvent:Connect(function(state)
     carryObserved=true
     carryingNow=type(state)=="table" and state.IsCarrying==true
+    carryUpdatedAt=os.clock()
   end)
 end
 local remote
@@ -423,10 +425,10 @@ local function renderFinder()
               countLabel.Text="Pickup remote unavailable"
               return
             end
-            local function walkTo(pos,radius,deadline,label,watchCarry)
+            local function walkTo(pos,radius,deadline,label,watchCarry,carryStart,confirmedCarry)
               while gui.Parent and os.clock()<deadline do
                 if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then return false,"character unavailable" end
-                if watchCarry and carryObserved and carryingNow==false then return false,"dropped" end
+                if watchCarry and confirmedCarry and carryObserved and carryingNow==false and carryUpdatedAt>carryStart then return false,"dropped" end
                 if (root.Position-pos).Magnitude<=radius then return true end
                 humanoid:MoveTo(pos)
                 task.wait(.25)
@@ -439,7 +441,7 @@ local function renderFinder()
               if success and type(snapshot)=="table" and type(snapshot.Records)=="table" then
                 for _,rec in pairs(snapshot.Records) do
                   if type(rec)=="table" and tostring(rec.Uid)==tostring(uid)
-                     and typeof(rec.BottomCFrame)=="CFrame" and (not rec.State or rec.State=="Slot") then
+                     and typeof(rec.BottomCFrame)=="CFrame" then
                     return rec.BottomCFrame.Position
                   end
                 end
@@ -480,15 +482,18 @@ local function renderFinder()
               countLabel.Text=(recoveries==0 and "Approaching " or "Recovering ")..egg.name
               local approached,why=walkTo(eggPos,9,os.clock()+50,"egg",false)
               if not approached then countLabel.Text="Could not reach egg: "..why return end
+              local carryStart=os.clock()
+              carryingNow=nil -- Ignore carry state left over from a previous trip.
               local success,accepted,reason=pcall(function() return carryRemote:InvokeServer({Uid=uid}) end)
               if not success or not accepted then
                 countLabel.Text="Pickup rejected: "..tostring(reason or accepted):sub(1,60)
                 return
               end
+              local confirmedCarry=carryObserved and carryingNow==true and carryUpdatedAt>=carryStart
               countLabel.Text="Carrying "..egg.name.." home..."
               -- Server events, when present, tell us whether the carry was dropped.
               -- Never assume the original egg position is where it landed.
-              local reached,why=walkTo(area.Position,5,os.clock()+90,"base",true)
+              local reached,why=walkTo(area.Position,5,os.clock()+90,"base",true,carryStart,confirmedCarry)
               if reached then
                 countLabel.Text="Reached base with "..egg.name.." — verify claim"
                 return

@@ -220,15 +220,16 @@ local eggLauncher=btn(gui,"",0,0,48,48,P.deep)
 eggLauncher.Name="EggFinderLauncher"
 eggLauncher.AnchorPoint=Vector2.new(1,0.5)
 -- Above the game's right-side egg button; launcher remains visible when finder is closed.
-eggLauncher.Position=UDim2.new(1,-38,0.285,0)
-eggLauncher.Size=UDim2.fromOffset(48,48)
+eggLauncher.Position=UDim2.new(1,-18,0.375,0)
+eggLauncher.Size=UDim2.fromOffset(44,44)
 eggLauncher.ZIndex=30
 line(eggLauncher,P.cyan,2)
 local ball=ui("Frame",eggLauncher,{AnchorPoint=Vector2.new(.5,.5),
-  Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(33,33),
+  Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(36,36),
   BackgroundColor3=Color3.fromRGB(247,248,250),BorderSizePixel=0,
   ClipsDescendants=true,ZIndex=31})
 round(ball,19)
+line(ball,Color3.fromRGB(20,24,32),2)
 local redHalf=ui("Frame",ball,{Size=UDim2.new(1,0,.50,0),
   BackgroundColor3=Color3.fromRGB(231,55,65),BorderSizePixel=0,ZIndex=32})
 local seam=ui("Frame",ball,{Position=UDim2.new(0,0,.47,0),Size=UDim2.new(1,0,0,4),
@@ -337,7 +338,7 @@ local function renderFinder()
           if (root.Position-target).Magnitude<=arrival then return true end
           attempts=attempts+1
           countLabel.Text=phase.." (route "..attempts..")"
-          local path=PathfindingService:CreatePath({AgentRadius=2,AgentHeight=5,AgentCanJump=true,WaypointSpacing=5})
+          local path=PathfindingService:CreatePath({AgentRadius=2,AgentHeight=5,AgentCanJump=true,WaypointSpacing=12})
           local computed=pcall(function() path:ComputeAsync(root.Position,target) end)
           local points={}
           if computed and path.Status==Enum.PathStatus.Success then
@@ -351,21 +352,21 @@ local function renderFinder()
             if not gui.Parent or _G.YafiTripToken~=token or os.clock()>deadline then return false,"target changed" end
             if point.Action==Enum.PathWaypointAction.Jump then humanoid.Jump=true end
             humanoid:MoveTo(point.Position)
-            local waypointDeadline=math.min(deadline,os.clock()+math.max(2.5,(root.Position-point.Position).Magnitude/math.max(8,humanoid.WalkSpeed)*2.5))
+            local waypointDeadline=math.min(deadline,os.clock()+math.max(4,(root.Position-point.Position).Magnitude/math.max(8,humanoid.WalkSpeed)*3))
             local previous=root.Position
             local stagnation=0
             while os.clock()<waypointDeadline and gui.Parent and _G.YafiTripToken==token do
               if (root.Position-target).Magnitude<=arrival then return true end
-              if (root.Position-point.Position).Magnitude<=3.5 then break end
+              if (root.Position-point.Position).Magnitude<=7 then break end
               task.wait(.2)
               if _G.YafiTripToken~=token then return false,"target changed" end
               if checkCarry and carryObserved and carryingNow==false then return false,"egg dropped; stopped return" end
               if (root.Position-previous).Magnitude<.45 then stagnation=stagnation+.2 else stagnation=0 end
               previous=root.Position
-              if stagnation>=1.8 then blocked=true break end
+              if stagnation>=3.2 then blocked=true break end
               if humanoid.Health<=0 then return false,"character died" end
             end
-            if blocked or (root.Position-point.Position).Magnitude>5 then break end
+            if blocked or (root.Position-point.Position).Magnitude>9 then break end
           end
           task.wait(.2)
         end
@@ -406,7 +407,7 @@ local function renderFinder()
             activeHumanoid=humanoid
             if not _G.YafiSavedSpeed then _G.YafiSavedSpeed=humanoid.WalkSpeed end
             savedSpeed=_G.YafiSavedSpeed
-            local flashSpeed=70
+            local flashSpeed=48
             humanoid.WalkSpeed=flashSpeed
             local destination=cf.Position
             local arrived,travelError=travelTo(humanoid,root,destination,9,60,"Flash to "..egg.name,token)
@@ -585,7 +586,7 @@ glowButton.MouseButton1Click:Connect(function()
 end)
 local speedToggle=btn(settings,"MOVEMENT: FLASH SPEED",16,137,274,37,P.blue)
 speedToggle.TextSize=12
-txt(settings,"Fast outbound; normal speed when carrying.",17,183,274,20,10,P.muted)
+txt(settings,"48 speed outbound; normal when carrying.",17,183,274,20,10,P.muted)
 
 txt(about,"ABOUT YAFI",17,17,272,28,17,P.text,true)
 txt(about,"EGG HUB  •  VERSION 4.0",17,55,274,22,12,P.cyan,true)

@@ -221,13 +221,13 @@ local eggLauncher=btn(gui,"",0,0,46,46,P.deep)
 eggLauncher.Name="EggFinderLauncher"
 eggLauncher.AnchorPoint=Vector2.new(1,0.5)
 eggLauncher.Position=UDim2.new(1,-18,0.375,0)
-eggLauncher.Size=UDim2.fromOffset(46,46)
+eggLauncher.Size=UDim2.fromOffset(42,42)
 eggLauncher.BackgroundTransparency=1
 eggLauncher.ZIndex=30
 
 local ball=ui("Frame",eggLauncher,{
   AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),
-  Size=UDim2.fromOffset(39,39),BackgroundColor3=Color3.new(1,1,1),
+  Size=UDim2.fromOffset(36,36),BackgroundColor3=Color3.new(1,1,1),
   BorderSizePixel=0,ZIndex=31})
 round(ball,24)
 ui("UIGradient",ball,{Rotation=90,Color=ColorSequence.new({
@@ -259,7 +259,7 @@ local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(1,0),
   BackgroundColor3=P.deep,BorderSizePixel=0,Visible=false,ZIndex=15})
 round(finder,17)
 line(finder,P.cyan,2)
-ui("UIScale",finder,{Scale=.76})
+ui("UIScale",finder,{Scale=.68})
 local titleBar=ui("Frame",finder,{Size=UDim2.new(1,0,0,42),BackgroundColor3=Color3.fromRGB(167,32,45),BorderSizePixel=0,ZIndex=16})
 round(titleBar,16)
 txt(titleBar,"STEAL PANEL  /  YAFI",17,6,360,29,20,P.text,true).ZIndex=17

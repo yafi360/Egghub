@@ -337,6 +337,7 @@ local function renderFinder()
           if checkCarry and carryObserved and carryingNow==false then return false,"egg dropped; stopped return" end
           if (root.Position-target).Magnitude<=arrival then return true end
           attempts=attempts+1
+          if _G.YafiTripToken~=token then return false,"target changed" end
           countLabel.Text=phase.." (route "..attempts..")"
           local path=PathfindingService:CreatePath({AgentRadius=2,AgentHeight=5,AgentCanJump=true,WaypointSpacing=12})
           local computed=pcall(function() path:ComputeAsync(root.Position,target) end)
@@ -401,6 +402,7 @@ local function renderFinder()
             local humanoid=character and character:FindFirstChildWhichIsA("Humanoid")
             local root=character and character:FindFirstChild("HumanoidRootPart")
             if not humanoid or not root then
+              if _G.YafiTripToken~=token then return end
               countLabel.Text="Character not ready"
               return
             end
@@ -409,12 +411,15 @@ local function renderFinder()
             savedSpeed=_G.YafiSavedSpeed
             local flashSpeed=48
             humanoid.WalkSpeed=flashSpeed
+            if _G.YafiTripToken~=token then return end
             local destination=cf.Position
             local arrived,travelError=travelTo(humanoid,root,destination,9,60,"Flash to "..egg.name,token)
             if not arrived then
+              if _G.YafiTripToken~=token then return end
               countLabel.Text="Cannot reach "..egg.name..": "..tostring(travelError)
               return
             end
+            if _G.YafiTripToken~=token then return end
             local carryRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggCarry",true)
             if not carryRemote or not carryRemote:IsA("RemoteFunction") then
               countLabel.Text="Carry request unavailable"
@@ -477,6 +482,7 @@ local function renderFinder()
               local target=area.Position
               countLabel.Text="Carrying "..egg.name.." home..."
               local reached,homeError=travelTo(humanoid,root,target,5,130,"Safe return "..egg.name,token,true)
+              if _G.YafiTripToken~=token then return end
               if reached then
                 countLabel.Text="Reached base with "..egg.name.." — verify claim"
               else

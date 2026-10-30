@@ -220,7 +220,7 @@ txt(tools,"Refreshes every 5 seconds when open.",17,137,274,22,11,P.muted)
 local eggLauncher=btn(gui,"",0,0,46,46,P.deep)
 eggLauncher.Name="EggFinderLauncher"
 eggLauncher.AnchorPoint=Vector2.new(1,0.5)
-eggLauncher.Position=UDim2.new(1,-75,0.265,0)
+eggLauncher.Position=UDim2.new(1,-48,0.325,0)
 eggLauncher.Size=UDim2.fromOffset(42,42)
 eggLauncher.BackgroundTransparency=1
 eggLauncher.ZIndex=30
@@ -520,32 +520,31 @@ local function refreshFinder()
   running=false
 end
 -- Keep the arrow physically connected to the scaled finder's left edge.
+-- Pokeball opens the panel; arrow is attached only while expanded.
 local function positionFinderArrow()
-  if finder.Visible then
-    local x=finder.AbsolutePosition.X-36
-    local y=finder.AbsolutePosition.Y+finder.AbsoluteSize.Y*.72
-    finderTab.Position=UDim2.fromOffset(x,y)
-  else
-    -- Collapsed tab sits above the game's egg shortcut on the right.
-    finderTab.Position=UDim2.new(1,-105,.345,0)
-  end
+  if not finder.Visible then return end
+  local x=finder.AbsolutePosition.X-35
+  local y=finder.AbsolutePosition.Y+finder.AbsoluteSize.Y*.72
+  finderTab.Position=UDim2.fromOffset(x,y)
 end
 local function setFinderOpen(on)
   finder.Visible=on
-  finderTab.Text=on and "<" or ">"
-  eggLauncher.Visible=false
-  positionFinderArrow()
-  if on then task.spawn(refreshFinder) end
+  eggLauncher.Visible=not on
+  finderTab.Visible=on
+  if on then
+    positionFinderArrow()
+    task.spawn(refreshFinder)
+  end
 end
 finder:GetPropertyChangedSignal("AbsolutePosition"):Connect(positionFinderArrow)
 finder:GetPropertyChangedSignal("AbsoluteSize"):Connect(positionFinderArrow)
-gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(positionFinderArrow)
-eggLauncher.Visible=false
-positionFinderArrow()
+finderTab.Text="<"
+finderTab.Visible=false
+eggLauncher.Visible=true
 local function openFinder() setFinderOpen(true) end
 finderButton.MouseButton1Click:Connect(openFinder)
 eggLauncher.MouseButton1Click:Connect(openFinder)
-finderTab.MouseButton1Click:Connect(function() setFinderOpen(not finder.Visible) end)
+finderTab.MouseButton1Click:Connect(function() setFinderOpen(false) end)
 finderClose.MouseButton1Click:Connect(function() setFinderOpen(false) end)
 petSearch:GetPropertyChangedSignal("Text"):Connect(renderFinder)
 minIncome:GetPropertyChangedSignal("Text"):Connect(renderFinder)

@@ -283,34 +283,71 @@ local function renderFinder()
       locate.TextSize=13
       locate.Font=Enum.Font.GothamBlack
       locate.MouseButton1Click:Connect(function()
-        local uid=egg.raw and (egg.raw.Uid or egg.raw.UID or egg.raw.uid)
-        if uid==nil then
-          countLabel.Text="Egg has no Uid; pickup not attempted"
+        if _G.YafiPickupBusy then
+          countLabel.Text="A pickup test is already running"
           return
         end
-        local carryRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggCarry",true)
-        if not carryRemote then
-          countLabel.Text="Carry remote not found in this version"
+        local raw=egg.raw or {}
+        local uid=raw.Uid or raw.UID or raw.uid
+        local cf=raw.BottomCFrame
+        if uid==nil or typeof(cf)~="CFrame" then
+          countLabel.Text="No Uid or BottomCFrame for "..egg.name
           return
         end
-        countLabel.Text="Testing carry for "..egg.name.." ..."
+        if raw.State and raw.State~="Slot" then
+          countLabel.Text="Egg is not available: "..tostring(raw.State)
+          return
+        end
+        _G.YafiPickupBusy=true
         task.spawn(function()
-          local ok,response=pcall(function()
-            if carryRemote:IsA("RemoteFunction") then
+          local ok,err=pcall(function()
+            local character=player.Character
+            local humanoid=character and character:FindFirstChildWhichIsA("Humanoid")
+            local root=character and character:FindFirstChild("HumanoidRootPart")
+            if not humanoid or not root then
+              countLabel.Text="Character not ready"
+              return
+            end
+            local destination=cf.Position
+            local limit=os.clock()+35
+            countLabel.Text="Walking to "..egg.name.." (current server)"
+            while gui.Parent and os.clock()<limit do
+              local dist=(root.Position-destination).Magnitude
+              if dist<=9 then break end
+              humanoid:MoveTo(destination)
+              task.wait(.45)
+              if humanoid.Health<=0 then
+                countLabel.Text="Character died; pickup cancelled"
+                return
+              end
+            end
+            local distance=(root.Position-destination).Magnitude
+            if distance>9 then
+              countLabel.Text=string.format("Could not reach %s (%.0f studs away)",egg.name,distance)
+              return
+            end
+            local carryRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggCarry",true)
+            if not carryRemote or not carryRemote:IsA("RemoteFunction") then
+              countLabel.Text="Carry request unavailable"
+              return
+            end
+            countLabel.Text="Near "..egg.name.."; requesting pickup..."
+            local sent,response,reason=pcall(function()
               return carryRemote:InvokeServer({Uid=uid})
-            elseif carryRemote:IsA("RemoteEvent") then
-              carryRemote:FireServer({Uid=uid})
-              return "sent"
-            else error("unsupported remote") end
+            end)
+            if not gui.Parent then return end
+            if not sent then
+              countLabel.Text="Pickup error: "..tostring(response):sub(1,65)
+            elseif response==false or response==nil then
+              countLabel.Text="Server rejected pickup: "..tostring(reason or "conditions not met"):sub(1,45)
+            else
+              countLabel.Text="Pickup accepted for "..egg.name.." — check carried egg"
+            end
           end)
-          if not gui.Parent then return end
-          if not ok then
-            countLabel.Text="Carry failed: "..tostring(response):sub(1,85)
-          elseif response==false then
-            countLabel.Text="Server rejected carry for "..egg.name
-          else
-            countLabel.Text="Carry request sent for "..egg.name.." - verify in game"
+          if not ok and gui.Parent then
+            countLabel.Text="Test error: "..tostring(err):sub(1,75)
           end
+          _G.YafiPickupBusy=false
         end)
       end)
     end

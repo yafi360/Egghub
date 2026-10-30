@@ -254,6 +254,49 @@ local dot=ui("Frame",center,{
 round(dot,7)
 line(dot,Color3.fromRGB(155,161,174),1)
 
+-- UI anchoring experiment: follow an identifiable game egg shortcut, never our own GUI.
+local GuiService=game:GetService("GuiService")
+eggLauncher.AnchorPoint=Vector2.new(.5,.5)
+local function findGameEggButton()
+  local candidates={}
+  for _,d in ipairs(parent:GetDescendants()) do
+    if d:IsA("GuiObject") and d:IsDescendantOf(gui)==false and d.Visible then
+      local name=d.Name:lower()
+      if (d:IsA("ImageButton") or d:IsA("TextButton")) and
+         (name=="egg" or name=="eggs" or name=="eggbutton" or name=="eggsbutton" or
+          name=="eggmenu" or name=="eggicon" or name=="eggshop") then
+        local p=d.AbsolutePosition
+        local size=d.AbsoluteSize
+        if size.X>=25 and size.X<=170 and size.Y>=25 and size.Y<=170 then
+          table.insert(candidates,d)
+        end
+      end
+    end
+  end
+  if #candidates==1 then return candidates[1] end
+  return nil
+end
+task.spawn(function()
+  local lastTarget=nil
+  while gui.Parent do
+    local target=findGameEggButton()
+    if target then
+      local inset=GuiService:GetGuiInset()
+      local p=target.AbsolutePosition
+      local z=target.AbsoluteSize
+      eggLauncher.Position=UDim2.fromOffset(
+        math.floor(p.X+z.X/2-inset.X+.5),
+        math.floor(p.Y-eggLauncher.AbsoluteSize.Y/2-9-inset.Y+.5))
+      lastTarget=target
+    elseif not lastTarget then
+      -- Fallback while the game button cannot be identified.
+      eggLauncher.AnchorPoint=Vector2.new(1,.5)
+      eggLauncher.Position=UDim2.new(1,-45,.27,0)
+    end
+    task.wait(.6)
+  end
+end)
+
 -- An expanded overlay preserves the V4 hub's compact navigation.
 local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(1,0),
   Position=UDim2.new(1,-56,0,100),Size=UDim2.fromOffset(490,440),

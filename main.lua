@@ -362,7 +362,7 @@ local hunterList=ui("ScrollingFrame",serverHunter,{
   BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=4,
   CanvasSize=UDim2.fromOffset(0,0),ZIndex=23})
 local hunterLayout=ui("UIListLayout",hunterList,{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder})
-local hunterButton=btn(finder,"SERVERS",324,49,150,36,P.blue)
+local hunterButton=btn(finder,"SERVERS",259,49,97,36,P.blue)
 hunterButton.TextSize=13
 hunterButton.ZIndex=20
 local HttpService=game:GetService("HttpService")
@@ -591,11 +591,12 @@ local function renderHalloweenCatalog()
  halloweenList.CanvasSize=UDim2.fromOffset(0,112)
  halloweenInfo.Text="No verified Halloween egg records or STEAL targets yet"
 end
-local halloweenButton=btn(finder,"🎃 HALLOWEEN",168,49,150,36,Color3.fromRGB(190,94,32))
+local halloweenButton=btn(finder,"🎃 HALLOWEEN",122,49,132,36,Color3.fromRGB(190,94,32))
 halloweenButton.TextSize=13
 halloweenButton.ZIndex=20
 eventViewOpen=function(on)
  halloweenView.Visible=on
+ alertsView.Visible=false
  serverHunter.Visible=false
  list.Visible=not on
  petSearch.Visible=not on
@@ -611,14 +612,105 @@ halloweenButton.MouseButton1Click:Connect(function()
 end)
 hunterButton.MouseButton1Click:Connect(function()
  local nextState=not serverHunter.Visible
+ alertsView.Visible=false
  eventViewOpen(false)
  showHunter(nextState)
 end)
 halloweenBack.MouseButton1Click:Connect(function() eventViewOpen(false) end)
-local liveEggsTab=btn(finder,"LIVE EGGS",15,49,147,36,P.blue)
+-- Community live sightings: third-party reports only, never verified server inventories.
+local alertsView=ui("Frame",finder,{Name="LiveEggAlerts",
+ Position=UDim2.fromOffset(15,164),Size=UDim2.fromOffset(460,328),
+ BackgroundColor3=Color3.fromRGB(35,40,65),BorderSizePixel=0,Visible=false,ZIndex=40})
+round(alertsView,10)
+local alertsHeading=txt(alertsView,"LIVE EGG ALERTS  /  COMMUNITY REPORTS",10,8,440,25,15,P.cyan,true)
+alertsHeading.ZIndex=41
+local alertsNote=txt(alertsView,"No server IDs. Sightings are NOT guaranteed available.",10,34,437,32,12,Color3.fromRGB(255,200,112))
+alertsNote.ZIndex=41
+alertsNote.TextWrapped=true
+local alertRefresh=btn(alertsView,"REFRESH REPORTS",10,67,210,32,P.blue)
+alertRefresh.ZIndex=42
+local alertBack=btn(alertsView,"BACK TO EGGS",228,67,220,32,P.panel)
+alertBack.ZIndex=42
+local alertList=ui("ScrollingFrame",alertsView,{Position=UDim2.fromOffset(10,107),
+ Size=UDim2.fromOffset(438,208),BackgroundTransparency=1,
+ BorderSizePixel=0,ScrollBarThickness=6,CanvasSize=UDim2.fromOffset(0,0),ZIndex=41})
+ui("UIListLayout",alertList,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
+local alertsBusy=false
+local function fetchCommunityAlerts()
+ if alertsBusy then return end
+ alertsBusy=true
+ alertsNote.Text="Loading community reports (not server inventories)..."
+ task.spawn(function()
+  local ok,html=pcall(function()
+   return game:HttpGet("https://www.stealegg.com/api/live-history.php?lang=en")
+  end)
+  if not alertsView.Parent then alertsBusy=false return end
+  for _,child in ipairs(alertList:GetChildren()) do
+   if child:IsA("Frame") then child:Destroy() end
+  end
+  local count=0
+  if ok and type(html)=="string" then
+   for tr in html:gmatch("<tr[^>]*>(.-)</tr>") do
+    local cells={}
+    for td in tr:gmatch("<t[dh][^>]*>(.-)</t[dh]>") do
+     cells[#cells+1]=td
+    end
+    if #cells>=3 then
+     local name=cells[1]:match("</a>%s*([^<]*)") or cells[1]:match(">([^<>]+)</a>") or ""
+     local rarity=cells[1]:match("<small[^>]*>(.-)</small>") or ""
+     local location=cells[2]:gsub("<[^>]*>",""):gsub("&amp;","&")
+     local reported=cells[3]:match("datetime=\"([^\"]+)\"") or cells[3]:gsub("<[^>]*>","")
+     name=name:gsub("<[^>]*>",""):gsub("^%s+",""):gsub("%s+$","")
+     if name~="" then
+      count=count+1
+      local item=ui("Frame",alertList,{Size=UDim2.new(1,-7,0,58),
+       BackgroundColor3= count%2==0 and Color3.fromRGB(64,70,103) or Color3.fromRGB(52,58,89),
+       BorderSizePixel=0,LayoutOrder=count,ZIndex=42})
+      round(item,6)
+      local title=txt(item,name.."  ["..rarity.."]",9,5,413,23,15,Color3.fromRGB(106,255,121),true)
+      title.ZIndex=43
+      local details=txt(item,location.."  |  "..reported,9,31,418,22,12,P.text)
+      details.ZIndex=43
+      if count>=45 then break end
+     end
+    end
+   end
+  end
+  alertList.CanvasSize=UDim2.fromOffset(0,count*62)
+  alertsNote.Text= count>0 and ("Showing "..count.." reported sightings • no server IDs or STEAL links")
+      or (ok and "No readable reports in public feed." or "Unable to load public feed from this executor.")
+  alertsBusy=false
+ end)
+end
+local alertsButton=btn(finder,"ALERTS",361,49,113,36,Color3.fromRGB(139,77,204))
+alertsButton.TextSize=13
+alertsButton.ZIndex=21
+local function showAlerts(on)
+ alertsView.Visible=on
+ if on then
+  halloweenView.Visible=false
+  serverHunter.Visible=false
+  list.Visible=false
+  petSearch.Visible=false
+  minIncome.Visible=false
+  refreshBtn.Visible=false
+  fetchCommunityAlerts()
+ else
+  list.Visible=true
+  petSearch.Visible=true
+  minIncome.Visible=true
+  refreshBtn.Visible=true
+ end
+end
+alertsButton.MouseButton1Click:Connect(function() showAlerts(not alertsView.Visible) end)
+alertRefresh.MouseButton1Click:Connect(fetchCommunityAlerts)
+alertBack.MouseButton1Click:Connect(function() showAlerts(false) end)
+
+local liveEggsTab=btn(finder,"LIVE EGGS",15,49,102,36,P.blue)
 liveEggsTab.TextSize=13
 liveEggsTab.ZIndex=21
 liveEggsTab.MouseButton1Click:Connect(function()
+ alertsView.Visible=false
  eventViewOpen(false)
  showHunter(false)
 end)

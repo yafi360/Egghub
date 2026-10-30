@@ -145,8 +145,14 @@ local rarityColors={
  celestial="#82F8FF", exclusive="#FFB477"
 }
 local function rarityHex(rarity)
- local key=tostring(rarity or ""):lower():gsub("<[^>]*>",""):gsub("%s+","")
- return rarityColors[key] or "#F0F8FF"
+ if typeof(rarity)=="Color3" then
+  return string.format("#%02X%02X%02X",math.floor(rarity.R*255+.5),math.floor(rarity.G*255+.5),math.floor(rarity.B*255+.5))
+ end
+ local key=tostring(rarity or ""):lower():gsub("<[^>]*>",""):gsub("[^%a]","")
+ for word,color in pairs(rarityColors) do
+  if key:find(word,1,true) then return color end
+ end
+ return "#F0F8FF"
 end
 local function richSafe(s)
  return tostring(s or ""):gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;")
@@ -260,16 +266,47 @@ local function renderFinder()
         BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,
         Image=iconId(egg.icon),ZIndex=18})
       ui("TextLabel",row,{
-        Position=UDim2.fromOffset(59,0),Size=UDim2.new(1,-65,1,0),
+        Position=UDim2.fromOffset(59,0),Size=UDim2.new(1,-156,1,0),
         BackgroundTransparency=1,TextColor3=P.text,TextWrapped=true,
         RichText=true,TextXAlignment=Enum.TextXAlignment.Left,
-        Font=Enum.Font.GothamBold,TextSize=14,ZIndex=18,
+        Font=Enum.Font.GothamBlack,TextSize=15,ZIndex=18,
         Text=string.format("<b>%d.</b> %s | %s <b>%s</b>\n%s | Size <b>%.2fx</b>",
           shown,'<font color="'..rarityHex(egg.rarity)..'"><b>'..richSafe(egg.name)..'</b></font>',egg.income and "EST." or "BASE",
           money(value),richSafe(egg.mutation),egg.scale)
       })
     end
   end
+      local locate=btn(row,"LOCATE",359,10,85,33,P.blue)
+      locate.ZIndex=20
+      locate.TextSize=11
+      locate.MouseButton1Click:Connect(function()
+        local target
+        local myRoot=player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        local best=math.huge
+        for _,obj in ipairs(workspace:GetDescendants()) do
+          if obj:IsA("Model") and normalize(obj.Name)==normalize(egg.name) then
+            local part=obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)
+            if part then
+              local distance=myRoot and (myRoot.Position-part.Position).Magnitude or 0
+              if distance<best then best=distance target=obj end
+            end
+          end
+        end
+        local old=workspace:FindFirstChild("YafiPetLocateHighlight")
+        if old then old:Destroy() end
+        if target then
+          local h=Instance.new("Highlight")
+          h.Name="YafiPetLocateHighlight"
+          h.FillColor=P.cyan
+          h.OutlineColor=P.blue
+          h.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+          h.Adornee=target
+          h.Parent=workspace
+          countLabel.Text="Highlighted: "..egg.name.." (nearest matching model)"
+        else
+          countLabel.Text="No matching world model found for "..egg.name
+        end
+      end)
   list.CanvasSize=UDim2.fromOffset(0,shown*58+6)
   countLabel.Text=lastStatus.." | Showing "..shown
 end
@@ -304,7 +341,7 @@ local function refreshFinder()
       table.insert(eggs,{name=name,mutation=tostring(egg.BaseMutation or "None"),
         scale=tonumber(egg.AssetScale) or 1,base=gameBase or database[normalize(name)],
         income=earned(egg,gameBase),icon=type(def)=="table" and def.Icon or nil,
-        rarity=(type(def)=="table" and (def.Rarity or def.Tier or def.RarityName)) or egg.Rarity or egg.Tier or databaseRarity[normalize(name)]})
+        rarity=(type(def)=="table" and (def.RarityColor or def.Rarity or def.Tier or def.RarityName)) or egg.Rarity or egg.Tier or databaseRarity[normalize(name)]})
     end
   end
   table.sort(eggs,function(a,b)

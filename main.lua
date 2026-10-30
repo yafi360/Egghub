@@ -576,6 +576,7 @@ local halloweenLayout=ui("UIListLayout",halloweenList,{
  Padding=UDim.new(0,3),SortOrder=Enum.SortOrder.LayoutOrder})
 local latest={}
 local stealActions={}
+local eventViewOpen
 local halloweenNames={
  "Voidseer Pumpkin","Bone Emperor","Gorillastein","Soul Phantom","Shelltide Voyager",
  "Phantom Dragon","Werewolf","BloodBloom","Grave Cerberus","Pumpkin Golem",
@@ -633,8 +634,7 @@ end
 local halloweenButton=btn(finder,"🎃 HALLOWEEN",219,43,136,32,Color3.fromRGB(190,94,32))
 halloweenButton.TextSize=13
 halloweenButton.ZIndex=20
-local eventViewOpen
- eventViewOpen=function(on)
+eventViewOpen=function(on)
  halloweenView.Visible=on
  serverHunter.Visible=false
  list.Visible=not on

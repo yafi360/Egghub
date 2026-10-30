@@ -255,7 +255,7 @@ line(dot,Color3.fromRGB(155,161,174),1)
 
 -- An expanded overlay preserves the V4 hub's compact navigation.
 local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(1,0),
-  Position=UDim2.new(1,-76,0,70),Size=UDim2.fromOffset(490,440),
+  Position=UDim2.new(1,-56,0,100),Size=UDim2.fromOffset(490,440),
   BackgroundColor3=P.deep,BorderSizePixel=0,Visible=false,ZIndex=15})
 round(finder,17)
 line(finder,P.cyan,2)
@@ -266,8 +266,8 @@ txt(titleBar,"STEAL PANEL  /  YAFI",17,6,360,29,20,P.text,true).ZIndex=17
 -- Red edge arrow: open panel when collapsed, hide when expanded.
 local finderTab=btn(gui,">",0,0,46,46,Color3.fromRGB(218,34,40))
 finderTab.Name="FinderEdgeTab"
-finderTab.AnchorPoint=Vector2.new(1,.5)
-finderTab.Position=UDim2.new(1,-76,0,310)
+finderTab.AnchorPoint=Vector2.new(0,.5)
+finderTab.Position=UDim2.new(1,-105,.345,0)
 finderTab.Font=Enum.Font.GothamBlack
 finderTab.TextSize=29
 finderTab.ZIndex=50
@@ -519,15 +519,29 @@ local function refreshFinder()
   renderFinder()
   running=false
 end
+-- Keep the arrow physically connected to the scaled finder's left edge.
+local function positionFinderArrow()
+  if finder.Visible then
+    local x=finder.AbsolutePosition.X-36
+    local y=finder.AbsolutePosition.Y+finder.AbsoluteSize.Y*.72
+    finderTab.Position=UDim2.fromOffset(x,y)
+  else
+    -- Collapsed tab sits above the game's egg shortcut on the right.
+    finderTab.Position=UDim2.new(1,-105,.345,0)
+  end
+end
 local function setFinderOpen(on)
   finder.Visible=on
   finderTab.Text=on and "<" or ">"
-  -- Arrow is accessible beside the panel, or on the right when hidden.
-  finderTab.Position=on and UDim2.new(1,-409,0,310) or UDim2.new(1,-76,0,310)
-  eggLauncher.Visible=not on
-  finderTab.ZIndex=50
+  eggLauncher.Visible=false
+  positionFinderArrow()
   if on then task.spawn(refreshFinder) end
 end
+finder:GetPropertyChangedSignal("AbsolutePosition"):Connect(positionFinderArrow)
+finder:GetPropertyChangedSignal("AbsoluteSize"):Connect(positionFinderArrow)
+gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(positionFinderArrow)
+eggLauncher.Visible=false
+positionFinderArrow()
 local function openFinder() setFinderOpen(true) end
 finderButton.MouseButton1Click:Connect(openFinder)
 eggLauncher.MouseButton1Click:Connect(openFinder)

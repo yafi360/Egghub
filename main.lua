@@ -220,7 +220,7 @@ txt(tools,"Refreshes every 5 seconds when open.",17,137,274,22,11,P.muted)
 local eggLauncher=btn(gui,"",0,0,46,46,P.deep)
 eggLauncher.Name="EggFinderLauncher"
 eggLauncher.AnchorPoint=Vector2.new(1,0.5)
-eggLauncher.Position=UDim2.new(1,-38,0.315,0)
+eggLauncher.Position=UDim2.new(1,-77,0.265,0)
 eggLauncher.Size=UDim2.fromOffset(42,42)
 eggLauncher.BackgroundTransparency=1
 eggLauncher.ZIndex=30
@@ -267,7 +267,7 @@ txt(titleBar,"STEAL PANEL  /  YAFI",17,6,360,29,20,P.text,true).ZIndex=17
 local finderTab=btn(gui,">",0,0,46,46,Color3.fromRGB(218,34,40))
 finderTab.Name="FinderEdgeTab"
 finderTab.AnchorPoint=Vector2.new(1,.5)
-finderTab.Position=UDim2.new(1,-96,.53,0)
+finderTab.Position=UDim2.new(1,-98,0,310)
 finderTab.Font=Enum.Font.GothamBlack
 finderTab.TextSize=29
 finderTab.ZIndex=50
@@ -581,8 +581,9 @@ local function setFinderOpen(on)
   finder.Visible=on
   finderTab.Text=on and "<" or ">"
   -- Arrow is accessible beside the panel, or on the right when hidden.
-  finderTab.Position=on and UDim2.new(1,-440,.53,0) or UDim2.new(1,-96,.53,0)
+  finderTab.Position=on and UDim2.new(1,-412,0,310) or UDim2.new(1,-98,0,310)
   eggLauncher.Visible=not on
+  finderTab.ZIndex=50
   if on then task.spawn(refreshFinder) end
 end
 local function openFinder() setFinderOpen(true) end

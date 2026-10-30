@@ -787,8 +787,9 @@ local function renderFinder()
           countLabel.Text="No Uid or BottomCFrame for "..egg.name
           return
         end
-        if raw.State and raw.State~="Slot" then
-          countLabel.Text="Egg is not available: "..tostring(raw.State)
+        -- Dropped eggs may be recoverable; let the server decide via carry remote.
+        if raw.State and raw.State~="Slot" and raw.State~="Dropped" then
+          countLabel.Text="Egg state: "..tostring(raw.State).." (cannot pick up)"
           return
         end
         _G.YafiPickupBusy=true
@@ -874,6 +875,28 @@ local function renderFinder()
               return
             end
             local eggPos=cf.Position
+            -- Recheck the selected UID, because a displayed egg can move or be dropped.
+            if snapshotRemote and snapshotRemote:IsA("RemoteFunction") then
+              local freshOK,fresh=pcall(function() return snapshotRemote:InvokeServer() end)
+              if freshOK and type(fresh)=="table" and type(fresh.Records)=="table" then
+                local found=false
+                for _,rec in pairs(fresh.Records) do
+                  if type(rec)=="table" and tostring(rec.Uid)==tostring(uid) then
+                    found=true
+                    if typeof(rec.BottomCFrame)=="CFrame" then eggPos=rec.BottomCFrame.Position end
+                    if rec.State and rec.State~="Slot" and rec.State~="Dropped" then
+                      countLabel.Text="Egg now unavailable: "..tostring(rec.State)
+                      return
+                    end
+                    break
+                  end
+                end
+                if not found then
+                  countLabel.Text="Egg disappeared; refresh the list"
+                  return
+                end
+              end
+            end
             local recoveries=0
             while gui.Parent and recoveries<=2 do
               countLabel.Text=(recoveries==0 and "Approaching " or "Recovering ")..egg.name

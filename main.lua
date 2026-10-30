@@ -816,63 +816,26 @@ local function renderFinder()
               countLabel.Text="Pickup remote unavailable"
               return
             end
+            -- Restore the straightforward movement that previously walked toward eggs.
+            -- Keep cancellation, carry-drop checks, and a bounded no-progress timeout.
             local function walkTo(pos,radius,deadline,label,watchCarry,carryStart,confirmedCarry)
-              local function interruption()
-                if thisTrip~=tripSerial or not _G.YafiPickupBusy then return "cancelled by movement key" end
-                if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then return "character unavailable" end
-                if watchCarry and confirmedCarry and carryObserved and carryingNow==false and carryUpdatedAt>carryStart then return "dropped" end
-                return nil
-              end
-              local attempts=0
-              while gui.Parent and os.clock()<deadline and attempts<4 do
-                local interrupted=interruption()
-                if interrupted then return false,interrupted end
+              local lastPosition=root.Position
+              local lastProgress=os.clock()
+              while gui.Parent and os.clock()<deadline do
+                if thisTrip~=tripSerial or not _G.YafiPickupBusy then return false,"cancelled by movement key" end
+                if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then return false,"character unavailable" end
+                if watchCarry and confirmedCarry and carryObserved and carryingNow==false and carryUpdatedAt>carryStart then return false,"dropped" end
                 if (root.Position-pos).Magnitude<=radius then return true end
-                attempts=attempts+1
-                countLabel.Text="Finding "..label.." route ("..attempts.."/4)..."
-                local path=PathfindingService:CreatePath({
-                  AgentRadius=2,AgentHeight=5,AgentCanJump=true,
-                  WaypointSpacing=4
-                })
-                local pathOK=pcall(function() path:ComputeAsync(root.Position,pos) end)
-                if not pathOK or path.Status~=Enum.PathStatus.Success then
-                  if attempts>=4 then return false,"no walkable path" end
-                  task.wait(.35)
-                else
-                  local stuck=false
-                  for _,waypoint in ipairs(path:GetWaypoints()) do
-                    local reason=interruption()
-                    if reason then return false,reason end
-                    local lastDistance=math.huge
-                    local progressAt=os.clock()
-                    local target=waypoint.Position
-                    while gui.Parent and os.clock()<deadline do
-                      reason=interruption()
-                      if reason then return false,reason end
-                      if (root.Position-pos).Magnitude<=radius then return true end
-                      local d=(root.Position-target).Magnitude
-                      if d<=3 then break end
-                      if d<lastDistance-1 then
-                        lastDistance=d
-                        progressAt=os.clock()
-                      end
-                      if os.clock()-progressAt>3.5 then
-                        stuck=true
-                        break
-                      end
-                      if waypoint.Action==Enum.PathWaypointAction.Jump then
-                        humanoid.Jump=true
-                      end
-                      humanoid:MoveTo(target)
-                      task.wait(.2)
-                    end
-                    if stuck or os.clock()>=deadline then break end
-                  end
-                  if (root.Position-pos).Magnitude<=radius then return true end
-                  if not stuck then task.wait(.2) end
+                if (root.Position-lastPosition).Magnitude>=2 then
+                  lastPosition=root.Position
+                  lastProgress=os.clock()
+                elseif os.clock()-lastProgress>9 then
+                  return false,"movement blocked"
                 end
+                humanoid:MoveTo(pos)
+                task.wait(.3)
               end
-              return false,"path blocked or destination unreachable"
+              return false,"destination unreachable"
             end
             -- The game's CarryAreaEgg prompt uses the currently bound egg.
             -- Fallback only when a single prompt clearly matches the selected position.

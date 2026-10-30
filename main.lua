@@ -323,6 +323,26 @@ local function renderFinder()
         end
         return false,"route blocked or timed out"
       end
+      local function travelTo(humanoid,root,target,arrival,seconds,phase)
+        if _G.YafiTeleportMode then
+          countLabel.Text="Teleporting: "..phase
+          local character=player.Character
+          local before=root.Position
+          local success=pcall(function()
+            character:PivotTo(CFrame.new(target+Vector3.new(0,3,0)))
+          end)
+          task.wait(1)
+          if success and humanoid.Parent and humanoid.Health>0 and root.Parent
+             and (root.Position-target).Magnitude<=arrival then
+            return true
+          end
+          if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then
+            return false,"teleport reset character"
+          end
+          countLabel.Text="Teleport blocked — using safe route"
+        end
+        return walkSmart(humanoid,root,target,arrival,seconds,phase)
+      end
       locate.MouseButton1Click:Connect(function()
         if _G.YafiPickupBusy then
           countLabel.Text="A pickup test is already running"
@@ -350,7 +370,7 @@ local function renderFinder()
               return
             end
             local destination=cf.Position
-            local arrived,travelError=walkSmart(humanoid,root,destination,9,60,"Navigating to "..egg.name)
+            local arrived,travelError=travelTo(humanoid,root,destination,9,60,"Navigating to "..egg.name)
             if not arrived then
               countLabel.Text="Cannot reach "..egg.name..": "..tostring(travelError)
               return
@@ -406,7 +426,7 @@ local function renderFinder()
               end
               local target=area.Position
               countLabel.Text="Carrying "..egg.name.." home..."
-              local reached,homeError=walkSmart(humanoid,root,target,5,100,"Returning "..egg.name.." home")
+              local reached,homeError=travelTo(humanoid,root,target,5,100,"Returning "..egg.name.." home")
               if reached then
                 countLabel.Text="Reached your base with "..egg.name.." — verify claim"
               else
@@ -488,6 +508,7 @@ task.spawn(function()
   end
 end)
 
+_G.YafiTeleportMode=true
 txt(settings,"CUSTOMIZE",17,16,270,27,17,P.text,true)
 txt(settings,"Your hub, your vibe.",17,44,260,22,12,P.muted)
 local glowButton=btn(settings,"GLOW ACCENT   ON",16,83,273,42,P.blue)
@@ -502,7 +523,14 @@ glowButton.MouseButton1Click:Connect(function()
   glowOn=not glowOn
   setGlow()
 end)
-txt(settings,"Changes apply instantly.",17,146,265,23,11,P.muted)
+local teleportToggle=btn(settings,"MOVEMENT: TELEPORT",16,137,274,37,P.blue)
+teleportToggle.TextSize=12
+teleportToggle.MouseButton1Click:Connect(function()
+  _G.YafiTeleportMode=not _G.YafiTeleportMode
+  teleportToggle.Text=_G.YafiTeleportMode and "MOVEMENT: TELEPORT" or "MOVEMENT: WALK"
+  teleportToggle.BackgroundColor3=_G.YafiTeleportMode and P.blue or P.panel
+end)
+txt(settings,"Teleport may be blocked or reset you.",17,183,274,20,10,P.muted)
 
 txt(about,"ABOUT YAFI",17,17,272,28,17,P.text,true)
 txt(about,"EGG HUB  •  VERSION 4.0",17,55,274,22,12,P.cyan,true)

@@ -661,6 +661,18 @@ local function fetchCommunityAlerts()
      local rarity=cells[1]:match("<small[^>]*>(.-)</small>") or ""
      local location=cells[2]:gsub("<[^>]*>",""):gsub("&amp;","&")
      local reported=cells[3]:match("datetime=\"([^\"]+)\"") or cells[3]:gsub("<[^>]*>","")
+     local freshness="time unknown"
+     local timeOK,epoch=pcall(function()
+      local stamp=DateTime.fromIsoDate(reported)
+      return stamp and stamp.UnixTimestamp
+     end)
+     if timeOK and type(epoch)=="number" then
+      local age=math.max(0,os.time()-epoch)
+      if age<60 then freshness="under 1m ago"
+      elseif age<3600 then freshness=tostring(math.floor(age/60)).."m ago"
+      elseif age<86400 then freshness=tostring(math.floor(age/3600)).."h ago"
+      else freshness=tostring(math.floor(age/86400)).."d ago" end
+     end
      name=name:gsub("<[^>]*>",""):gsub("^%s+",""):gsub("%s+$","")
      if name~="" then
       count=count+1
@@ -670,7 +682,7 @@ local function fetchCommunityAlerts()
       round(item,6)
       local title=txt(item,name.."  ["..rarity.."]",9,5,413,23,15,Color3.fromRGB(106,255,121),true)
       title.ZIndex=43
-      local details=txt(item,location.."  |  "..reported,9,31,418,22,12,P.text)
+      local details=txt(item,location.."  |  "..freshness.."  |  community report",9,31,418,22,12,P.text)
       details.ZIndex=43
       if count>=45 then break end
      end
@@ -678,7 +690,7 @@ local function fetchCommunityAlerts()
    end
   end
   alertList.CanvasSize=UDim2.fromOffset(0,count*62)
-  alertsNote.Text= count>0 and ("Showing "..count.." reported sightings • no server IDs or STEAL links")
+  alertsNote.Text= count>0 and ("Showing "..count.." reports from StealEgg.com • server IDs unavailable")
       or (ok and "No readable reports in public feed." or "Unable to load public feed from this executor.")
   alertsBusy=false
  end)

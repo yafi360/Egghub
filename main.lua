@@ -911,6 +911,32 @@ local function renderFinder()
               countLabel.Text="Your base could not be identified"
               return
             end
+            -- Dynamically locate a SAFE ZONE landmark in the current map.
+            -- Avoid fixed coordinates because plot assignments change each server.
+            local function safeZoneWaypoint(fromPos)
+              local best,bestScore
+              local reference=area.Position
+              for _,obj in ipairs(workspace:GetDescendants()) do
+                local name=obj.Name:lower():gsub("[%s_%-]","")
+                if (name:find("safezone",1,true) or name:find("safearea",1,true)) then
+                  local point
+                  if obj:IsA("BasePart") then
+                    point=obj.Position
+                  elseif obj:IsA("Model") then
+                    local ok,pivot=pcall(function() return obj:GetPivot() end)
+                    if ok then point=pivot.Position end
+                  elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+                    local adornee=obj.Adornee
+                    if adornee and adornee:IsA("BasePart") then point=adornee.Position end
+                  end
+                  if point then
+                    local score=(point-reference).Magnitude + (point-fromPos).Magnitude*.25
+                    if not bestScore or score<bestScore then best,bestScore=point,score end
+                  end
+                end
+              end
+              return best
+            end
             local eggPos=cf.Position
             -- Recheck the selected UID, because a displayed egg can move or be dropped.
             if snapshotRemote and snapshotRemote:IsA("RemoteFunction") then
@@ -1004,7 +1030,20 @@ local function renderFinder()
               countLabel.Text="Carrying "..egg.name.." home..."
               -- Server events, when present, tell us whether the carry was dropped.
               -- Never assume the original egg position is where it landed.
-              local reached,why=walkTo(area.Position,5,os.clock()+90,"base",true,carryStart,confirmedCarry)
+              local routeDeadline=os.clock()+90
+              local safePoint=safeZoneWaypoint(root.Position)
+              if safePoint and (root.Position-safePoint).Magnitude>10
+                 and (safePoint-area.Position).Magnitude>8 then
+                countLabel.Text="Returning through SAFE ZONE..."
+                local safeReached,safeWhy=walkTo(safePoint,10,routeDeadline,"safe zone",true,carryStart,confirmedCarry)
+                if not safeReached then
+                  countLabel.Text="Return stopped before safe zone: "..safeWhy
+                  return
+                end
+              end
+              if thisTrip~=tripSerial then return end
+              countLabel.Text="Returning to your assigned base..."
+              local reached,why=walkTo(area.Position,5,routeDeadline,"base",true,carryStart,confirmedCarry)
               if reached then
                 countLabel.Text="Reached base with "..egg.name.." — verify claim"
                 return

@@ -900,7 +900,7 @@ local function renderFinder()
             local recoveries=0
             while gui.Parent and recoveries<=2 do
               countLabel.Text=(recoveries==0 and "Approaching " or "Recovering ")..egg.name
-              local approached,why=walkTo(eggPos,9,os.clock()+50,"egg",false)
+              local approached,why=walkTo(eggPos,3.5,os.clock()+50,"egg",false)
               if not approached then countLabel.Text="Could not reach egg: "..why return end
               if thisTrip~=tripSerial then return end
               local carryStart=os.clock()

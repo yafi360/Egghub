@@ -50,7 +50,7 @@ local function btn(p,s,x,y,w,h,bg)
 end
 
 local gui=ui("ScreenGui",parent,{Name="YafiEggHub",ResetOnSpawn=false,
-  ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
+  ZIndexBehavior=Enum.ZIndexBehavior.Sibling,DisplayOrder=10000})
 local shadow=ui("Frame",gui,{Size=UDim2.fromOffset(444,306),AnchorPoint=Vector2.new(.5,.5),
   Position=UDim2.new(.5,6,.5,8),BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=.45,
   BorderSizePixel=0})
@@ -220,7 +220,7 @@ txt(tools,"Refreshes every 5 seconds when open.",17,137,274,22,11,P.muted)
 local eggLauncher=btn(gui,"",0,0,46,46,P.deep)
 eggLauncher.Name="EggFinderLauncher"
 eggLauncher.AnchorPoint=Vector2.new(1,0.5)
-eggLauncher.Position=UDim2.new(1,-18,0.375,0)
+eggLauncher.Position=UDim2.new(1,-38,0.315,0)
 eggLauncher.Size=UDim2.fromOffset(42,42)
 eggLauncher.BackgroundTransparency=1
 eggLauncher.ZIndex=30
@@ -350,6 +350,8 @@ local function renderFinder()
           if _G.YafiTripToken~=token then return false,"target changed" end
           countLabel.Text=phase.." (route "..attempts..")"
           local path=PathfindingService:CreatePath({AgentRadius=2,AgentHeight=5,AgentCanJump=true,WaypointSpacing=12})
+          -- Keep moving while the route is being computed rather than standing still.
+          humanoid:MoveTo(target)
           local computed=pcall(function() path:ComputeAsync(root.Position,target) end)
           local points={}
           if computed and path.Status==Enum.PathStatus.Success then
@@ -422,40 +424,6 @@ local function renderFinder()
             local flashSpeed=48
             humanoid.WalkSpeed=flashSpeed
             if _G.YafiTripToken~=token then return end
-            local destination=cf.Position
-            local arrived,travelError=travelTo(humanoid,root,destination,9,60,"Flash to "..egg.name,token)
-            if not arrived then
-              if _G.YafiTripToken~=token then return end
-              countLabel.Text="Cannot reach "..egg.name..": "..tostring(travelError)
-              return
-            end
-            if _G.YafiTripToken~=token then return end
-            local carryRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggCarry",true)
-            if not carryRemote or not carryRemote:IsA("RemoteFunction") then
-              countLabel.Text="Carry request unavailable"
-              return
-            end
-            countLabel.Text="Near "..egg.name.."; requesting pickup..."
-            local sent,response,reason=pcall(function()
-              return carryRemote:InvokeServer({Uid=uid})
-            end)
-            if not gui.Parent or _G.YafiTripToken~=token then return end
-            if not sent then
-              countLabel.Text="Pickup error: "..tostring(response):sub(1,65)
-            elseif response==false or response==nil then
-              countLabel.Text="Server rejected pickup: "..tostring(reason or "conditions not met"):sub(1,45)
-            else
-              -- Do not sprint while carrying: the game can drop the egg after a
-              -- high-displacement move. Restore the server's normal carry pace.
-              humanoid.WalkSpeed=savedSpeed
-              countLabel.Text="Pickup accepted — checking carry..." 
-              task.wait(.65)
-              if _G.YafiTripToken~=token then return end
-              if carryObserved and carryingNow==false then
-                countLabel.Text="Egg was dropped before return; stopped"
-                return
-              end
-              countLabel.Text="Egg picked up — finding your base..."
               local plots=workspace:FindFirstChild("Plots")
               local ownPlot
               local stateRemote=RS:FindFirstChild("RF/Homestead/AskState",true)
@@ -486,10 +454,45 @@ local function renderFinder()
               end
               local area=ownPlot and ownPlot:FindFirstChild("ToUpdate") and ownPlot.ToUpdate:FindFirstChild("PetArea")
               if not area or not area:IsA("BasePart") then
-                countLabel.Text="Picked up "..egg.name.." — could not identify your base"
+                countLabel.Text="Could not identify your base; trip cancelled"
                 return
               end
+
+            local destination=cf.Position
+            local arrived,travelError=travelTo(humanoid,root,destination,9,60,"Flash to "..egg.name,token)
+            if not arrived then
+              if _G.YafiTripToken~=token then return end
+              countLabel.Text="Cannot reach "..egg.name..": "..tostring(travelError)
+              return
+            end
+            if _G.YafiTripToken~=token then return end
+            local carryRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggCarry",true)
+            if not carryRemote or not carryRemote:IsA("RemoteFunction") then
+              countLabel.Text="Carry request unavailable"
+              return
+            end
+            countLabel.Text="Near "..egg.name.."; requesting pickup..."
+            local sent,response,reason=pcall(function()
+              return carryRemote:InvokeServer({Uid=uid})
+            end)
+            if not gui.Parent or _G.YafiTripToken~=token then return end
+            if not sent then
+              countLabel.Text="Pickup error: "..tostring(response):sub(1,65)
+            elseif response==false or response==nil then
+              countLabel.Text="Server rejected pickup: "..tostring(reason or "conditions not met"):sub(1,45)
+            else
+              -- Do not sprint while carrying: the game can drop the egg after a
+              -- high-displacement move. Restore the server's normal carry pace.
+              humanoid.WalkSpeed=savedSpeed
+              countLabel.Text="Pickup accepted — returning immediately"
+              if _G.YafiTripToken~=token then return end
+              if carryObserved and carryingNow==false then
+                countLabel.Text="Egg was dropped before return; stopped"
+                return
+              end
+              countLabel.Text="Egg picked up — finding your base..."
               local target=area.Position
+              humanoid:MoveTo(target)
               countLabel.Text="Carrying "..egg.name.." home..."
               local reached,homeError=travelTo(humanoid,root,target,5,130,"Safe return "..egg.name,token,true)
               if _G.YafiTripToken~=token then return end

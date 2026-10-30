@@ -283,18 +283,31 @@ local function renderFinder()
       locate.TextSize=13
       locate.Font=Enum.Font.GothamBlack
       locate.MouseButton1Click:Connect(function()
-        countLabel.Text="Searching for "..egg.name.."..."
+        countLabel.Text="Checking current server ID for "..egg.name.."..."
         local target,part,prompt
         local best=math.huge
         local root=player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        local candidateCount=0
+        local keys={"EggId","EggID","Id","ID","GUID","Guid","RecordId","RecordID","AssetId"}
         for _,obj in ipairs(workspace:GetDescendants()) do
           if obj:IsA("Model") then
-            local matches=normalize(obj.Name)==normalize(egg.name)
+            local matches=false
+            for _,key in ipairs(keys) do
+              local attr=obj:GetAttribute(key)
+              if attr~=nil and tostring(attr)==egg.recordId then matches=true break end
+            end
             if not matches then
-              local ok,value=pcall(function() return obj:GetAttribute("AssetCategory") end)
-              matches=ok and normalize(value)==normalize(egg.name)
+              for _,child in ipairs(obj:GetChildren()) do
+                if child:IsA("StringValue") or child:IsA("IntValue") or child:IsA("NumberValue") then
+                  for _,key in ipairs(keys) do
+                    if child.Name==key and tostring(child.Value)==egg.recordId then matches=true break end
+                  end
+                end
+                if matches then break end
+              end
             end
             if matches then
+              candidateCount=candidateCount+1
               local p=obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)
               if p then
                 local distance=root and (root.Position-p.Position).Magnitude or 0
@@ -371,12 +384,13 @@ local function refreshFinder()
     return
   end
   local eggs={}
-  for _,egg in pairs(result.Records) do
+  for recordKey,egg in pairs(result.Records) do
     if type(egg)=="table" then
       local name=tostring(egg.AssetCategory or "Unknown")
       local def=type(assets)=="table" and assets[name] or nil
       local gameBase=type(def)=="table" and tonumber(def.EarningRate) or nil
-      table.insert(eggs,{name=name,mutation=tostring(egg.BaseMutation or "None"),
+      local recordId=egg.Id or egg.ID or egg.EggId or egg.EggID or egg.Guid or egg.GUID or recordKey
+      table.insert(eggs,{recordId=tostring(recordId),name=name,mutation=tostring(egg.BaseMutation or "None"),
         scale=tonumber(egg.AssetScale) or 1,base=gameBase or database[normalize(name)],
         income=earned(egg,gameBase),icon=type(def)=="table" and def.Icon or nil,
         rarity=(type(def)=="table" and (def.Rarity or def.Tier or def.RarityName)) or databaseRarity[normalize(name)] or egg.Rarity or egg.Tier})

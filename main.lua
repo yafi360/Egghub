@@ -11,6 +11,7 @@ if previous then previous:Destroy() end
 -- Reset stale state from a previous execution.
 _G.YafiPickupBusy=false
 _G.YafiTripToken=(_G.YafiTripToken or 0)+1
+_G.YafiSavedSpeed=nil
 
 local P = {
   deep=Color3.fromRGB(9,19,44), navy=Color3.fromRGB(16,31,65),
@@ -360,7 +361,8 @@ local function renderFinder()
               return
             end
             activeHumanoid=humanoid
-            savedSpeed=humanoid.WalkSpeed
+            if not _G.YafiSavedSpeed then _G.YafiSavedSpeed=humanoid.WalkSpeed end
+            savedSpeed=_G.YafiSavedSpeed
             local flashSpeed=110
             humanoid.WalkSpeed=flashSpeed
             local destination=cf.Position
@@ -378,7 +380,7 @@ local function renderFinder()
             local sent,response,reason=pcall(function()
               return carryRemote:InvokeServer({Uid=uid})
             end)
-            if false and gui.Parent and sent and response==false and travelError=="teleported" then
+            if false then -- Teleport-only retry disabled in Flash mode.
               -- The server can reject a pickup immediately after a local teleport.
               -- Allow character movement to settle and retry only once.
               countLabel.Text="Teleport pickup rejected; confirming position..."
@@ -442,7 +444,10 @@ local function renderFinder()
           end)
           if activeHumanoid and activeHumanoid.Parent and savedSpeed then
             -- Only current journey restores speed; previous canceled trip must not overwrite the next.
-            if _G.YafiTripToken==token then activeHumanoid.WalkSpeed=savedSpeed end
+            if _G.YafiTripToken==token then
+              activeHumanoid.WalkSpeed=savedSpeed
+              _G.YafiSavedSpeed=nil
+            end
           end
           if not ok and gui.Parent and _G.YafiTripToken==token then
             countLabel.Text="Test error: "..tostring(err):sub(1,75)

@@ -1,220 +1,194 @@
--- YAFI EGG HUB V3.0
--- Blue game-inspired UI | Client-side interface
+-- YAFI EGG HUB • V4.0 / NEON BLUE
+-- Cosmetic interface only. Roblox LocalScript.
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 if not player then return end
-local playerGui = player:WaitForChild("PlayerGui")
-local prior = playerGui:FindFirstChild("YafiEggHub")
-if prior then prior:Destroy() end
+local parent = player:WaitForChild("PlayerGui")
+local previous = parent:FindFirstChild("YafiEggHub")
+if previous then previous:Destroy() end
 
-local C = {
-    navy = Color3.fromRGB(12, 53, 125),
-    blue = Color3.fromRGB(18, 112, 245),
-    sky = Color3.fromRGB(65, 184, 255),
-    light = Color3.fromRGB(211, 241, 255),
-    white = Color3.fromRGB(255, 255, 255),
-    ink = Color3.fromRGB(19, 69, 138),
-    pale = Color3.fromRGB(233, 247, 255),
-    green = Color3.fromRGB(38, 197, 129)
+local P = {
+  deep=Color3.fromRGB(9,19,44), navy=Color3.fromRGB(16,31,65),
+  panel=Color3.fromRGB(23,43,82), line=Color3.fromRGB(50,85,141),
+  blue=Color3.fromRGB(36,117,252), cyan=Color3.fromRGB(61,213,255),
+  text=Color3.fromRGB(240,248,255), muted=Color3.fromRGB(144,175,215),
+  green=Color3.fromRGB(72,230,172)
 }
-local function round(obj, r)
-    local x = Instance.new("UICorner")
-    x.CornerRadius = UDim.new(0, r)
-    x.Parent = obj
+local function ui(class, parent, props)
+  local o=Instance.new(class)
+  for k,v in pairs(props or {}) do o[k]=v end
+  o.Parent=parent
+  return o
 end
-local function stroke(obj, color, width)
-    local x = Instance.new("UIStroke")
-    x.Color = color
-    x.Thickness = width or 2
-    x.Parent = obj
+local function round(o,r)
+  ui("UICorner",o,{CornerRadius=UDim.new(0,r)})
 end
-local function gradient(obj, top, bottom, rotation)
-    local g = Instance.new("UIGradient")
-    g.Color = ColorSequence.new(top, bottom)
-    g.Rotation = rotation or 90
-    g.Parent = obj
+local function line(o,c,t)
+  ui("UIStroke",o,{Color=c or P.line,Thickness=t or 1})
 end
-local function text(parent, value, pos, size, fontSize, color, bold)
-    local t = Instance.new("TextLabel")
-    t.BackgroundTransparency = 1
-    t.Position = pos
-    t.Size = size
-    t.Text = value
-    t.Font = bold and Enum.Font.GothamBold or Enum.Font.GothamMedium
-    t.TextSize = fontSize
-    t.TextColor3 = color or C.white
-    t.TextXAlignment = Enum.TextXAlignment.Left
-    t.Parent = parent
-    return t
+local function grad(o,a,b,rot)
+  ui("UIGradient",o,{Color=ColorSequence.new(a,b),Rotation=rot or 0})
 end
-local function button(parent, name, pos, size)
-    local b = Instance.new("TextButton")
-    b.Name = name
-    b.Position = pos
-    b.Size = size
-    b.Text = name
-    b.Font = Enum.Font.GothamBold
-    b.TextSize = 15
-    b.TextColor3 = C.white
-    b.BackgroundColor3 = C.blue
-    b.AutoButtonColor = true
-    b.Parent = parent
-    round(b, 13)
-    stroke(b, Color3.fromRGB(137, 222, 255), 2)
-    return b
+local function txt(p,s,x,y,w,h,size,color,bold)
+  return ui("TextLabel",p,{Text=s,Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),
+    BackgroundTransparency=1,Font=bold and Enum.Font.GothamBold or Enum.Font.GothamMedium,
+    TextColor3=color or P.text,TextSize=size,TextXAlignment=Enum.TextXAlignment.Left,
+    TextTruncate=Enum.TextTruncate.AtEnd})
+end
+local function btn(p,s,x,y,w,h,bg)
+  local o=ui("TextButton",p,{Text=s,Position=UDim2.fromOffset(x,y),Size=UDim2.fromOffset(w,h),
+    BackgroundColor3=bg or P.panel,BorderSizePixel=0,AutoButtonColor=true,
+    Font=Enum.Font.GothamBold,TextSize=13,TextColor3=P.text})
+  round(o,10)
+  return o
 end
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "YafiEggHub"
-gui.ResetOnSpawn = false
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.Parent = playerGui
+local gui=ui("ScreenGui",parent,{Name="YafiEggHub",ResetOnSpawn=false,
+  ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
+local shadow=ui("Frame",gui,{Size=UDim2.fromOffset(444,306),AnchorPoint=Vector2.new(.5,.5),
+  Position=UDim2.new(.5,6,.5,8),BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=.45,
+  BorderSizePixel=0})
+round(shadow,19)
+local main=ui("Frame",gui,{Size=UDim2.fromOffset(444,306),AnchorPoint=Vector2.new(.5,.5),
+  Position=UDim2.fromScale(.5,.5),BackgroundColor3=P.deep,BorderSizePixel=0})
+round(main,18)
+line(main,P.line,1.5)
+local top=ui("Frame",main,{Size=UDim2.new(1,0,0,59),BackgroundColor3=P.navy,BorderSizePixel=0})
+round(top,18)
+local topMask=ui("Frame",top,{Position=UDim2.fromOffset(0,37),Size=UDim2.new(1,0,0,23),
+  BorderSizePixel=0,BackgroundColor3=P.navy})
+local dragArea=ui("Frame",top,{Size=UDim2.fromOffset(325,59),BackgroundTransparency=1,Active=true})
+local orb=ui("Frame",top,{Position=UDim2.fromOffset(16,13),Size=UDim2.fromOffset(34,34),
+  BackgroundColor3=P.blue,BorderSizePixel=0})
+round(orb,11)
+grad(orb,P.cyan,P.blue,45)
+txt(orb,"Y",11,3,18,28,20,P.text,true)
+txt(top,"YAFI / EGG HUB",60,9,252,27,17,P.text,true)
+txt(top,"NEON BLUE    •    V4.0",61,34,240,17,10,P.cyan,true)
+local minimize=btn(top,"—",363,14,29,29,P.panel)
+local close=btn(top,"×",400,14,29,29,Color3.fromRGB(85,43,76))
+close.TextSize=20
 
-local shadow = Instance.new("Frame")
-shadow.Name = "Shadow"
-shadow.AnchorPoint = Vector2.new(.5, .5)
-shadow.Position = UDim2.new(.5, 7, .5, 10)
-shadow.Size = UDim2.fromOffset(428, 356)
-shadow.BackgroundColor3 = Color3.fromRGB(4, 27, 74)
-shadow.BackgroundTransparency = .38
-shadow.BorderSizePixel = 0
-shadow.Parent = gui
-round(shadow, 24)
-
-local main = Instance.new("Frame")
-main.Name = "Main"
-main.AnchorPoint = Vector2.new(.5, .5)
-main.Position = UDim2.fromScale(.5, .5)
-main.Size = UDim2.fromOffset(428, 356)
-main.BackgroundColor3 = C.navy
-main.BorderSizePixel = 0
-main.Parent = gui
-round(main, 24)
-stroke(main, C.light, 3)
-gradient(main, C.sky, C.blue, 90)
-
-local header = Instance.new("Frame")
-header.Name = "DragArea"
-header.Size = UDim2.new(1, -12, 0, 78)
-header.Position = UDim2.fromOffset(6, 5)
-header.BackgroundTransparency = 1
-header.Active = true
-header.Parent = main
-local logo = text(header, "🥚  YAFI EGG HUB", UDim2.fromOffset(16, 10), UDim2.new(1, -130, 0, 34), 22, C.white, true)
-local subtitle = text(header, "BLUE EDITION  •  V3.0", UDim2.fromOffset(24, 46), UDim2.new(1, -150, 0, 18), 11, C.light, true)
-
-local mini = button(header, "–", UDim2.new(1, -98, 0, 15), UDim2.fromOffset(39, 37))
-mini.TextSize = 22
-local exit = button(header, "X", UDim2.new(1, -52, 0, 15), UDim2.fromOffset(39, 37))
-
-local panel = Instance.new("Frame")
-panel.Name = "InnerPanel"
-panel.Position = UDim2.fromOffset(14, 83)
-panel.Size = UDim2.new(1, -28, 1, -98)
-panel.BackgroundColor3 = C.pale
-panel.BorderSizePixel = 0
-panel.Parent = main
-round(panel, 18)
-stroke(panel, Color3.fromRGB(166, 226, 255), 2)
-
-local tabbar = Instance.new("Frame")
-tabbar.Position = UDim2.fromOffset(12, 12)
-tabbar.Size = UDim2.new(1, -24, 0, 46)
-tabbar.BackgroundTransparency = 1
-tabbar.Parent = panel
-local layout = Instance.new("UIListLayout")
-layout.FillDirection = Enum.FillDirection.Horizontal
-layout.Padding = UDim.new(0, 8)
-layout.Parent = tabbar
-
-local body = Instance.new("Frame")
-body.Position = UDim2.fromOffset(12, 70)
-body.Size = UDim2.new(1, -24, 1, -82)
-body.BackgroundColor3 = C.white
-body.BorderSizePixel = 0
-body.Parent = panel
-round(body, 15)
-stroke(body, Color3.fromRGB(190, 228, 255), 1)
-
-local pages, tabs = {}, {}
-local function makeTab(name, symbol)
-    local b = button(tabbar, symbol .. " " .. name, UDim2.new(), UDim2.new(1/3, -6, 0, 42))
-    b.Name = name
-    b.TextSize = 13
-    tabs[name] = b
-    local p = Instance.new("Frame")
-    p.Name = name
-    p.Size = UDim2.fromScale(1, 1)
-    p.BackgroundTransparency = 1
-    p.Visible = false
-    p.Parent = body
-    pages[name] = p
-    return p
+local sidebar=ui("Frame",main,{Position=UDim2.fromOffset(9,68),Size=UDim2.fromOffset(111,229),
+  BackgroundColor3=P.navy,BorderSizePixel=0})
+round(sidebar,12)
+local tabButtons={}
+for i,item in ipairs({{"HOME","⌂"},{"TOOLS","✦"},{"SETTINGS","⚙"},{"ABOUT","?"}}) do
+  local b=btn(sidebar,item[2].."  "..item[1],8,10+(i-1)*46,95,39,P.navy)
+  b.TextSize=12
+  tabButtons[item[1]]=b
 end
-local home = makeTab("Home", "⌂")
-local settings = makeTab("Settings", "⚙")
-local about = makeTab("About", "★")
+txt(sidebar,"YAFI  •  2026",14,204,90,15,9,P.muted,true)
+
+local content=ui("Frame",main,{Position=UDim2.fromOffset(129,68),Size=UDim2.fromOffset(306,229),
+  BackgroundColor3=P.navy,BorderSizePixel=0})
+round(content,12)
+line(content,P.line,1)
+local pages={}
+local function page(name)
+  local f=ui("Frame",content,{Name=name,Size=UDim2.fromScale(1,1),
+    BackgroundTransparency=1,Visible=false})
+  pages[name]=f
+  return f
+end
+local home=page("HOME")
+local tools=page("TOOLS")
+local settings=page("SETTINGS")
+local about=page("ABOUT")
+
+txt(home,"YOUR COMMAND DECK",17,16,272,25,16,P.text,true)
+txt(home,"A little blue energy for your game.",17,44,270,20,11,P.muted,false)
+local hero=ui("Frame",home,{Position=UDim2.fromOffset(15,76),Size=UDim2.fromOffset(276,91),
+  BackgroundColor3=P.blue,BorderSizePixel=0})
+round(hero,12)
+grad(hero,Color3.fromRGB(21,115,238),Color3.fromRGB(19,57,133),0)
+txt(hero,"EGG HUB",16,13,175,31,22,P.text,true)
+txt(hero,"Interface online",17,49,190,22,12,Color3.fromRGB(222,244,255))
+txt(hero,"✦",232,24,40,42,29,P.cyan,true)
+local statusDot=ui("Frame",home,{Position=UDim2.fromOffset(18,187),Size=UDim2.fromOffset(8,8),
+  BackgroundColor3=P.green,BorderSizePixel=0})
+round(statusDot,5)
+txt(home,"READY TO EXPLORE",34,179,245,23,12,P.green,true)
+
+txt(tools,"TOOLBOX",17,16,265,27,17,P.text,true)
+txt(tools,"A home for upcoming game tools.",17,49,268,24,12,P.muted)
+local toolCard=ui("Frame",tools,{Position=UDim2.fromOffset(15,86),Size=UDim2.fromOffset(276,91),
+  BackgroundColor3=P.panel,BorderSizePixel=0})
+round(toolCard,12)
+line(toolCard,P.line)
+txt(toolCard,"✦  NEW FEATURES",16,12,250,26,15,P.cyan,true)
+txt(toolCard,"This is a UI-only preview.",16,48,240,25,12,P.muted)
+
+txt(settings,"CUSTOMIZE",17,16,270,27,17,P.text,true)
+txt(settings,"Your hub, your vibe.",17,44,260,22,12,P.muted)
+local glowButton=btn(settings,"GLOW ACCENT   ON",16,83,273,42,P.blue)
+local glowOn=true
+local function setGlow()
+  orb.BackgroundColor3=glowOn and P.blue or P.panel
+  glowButton.Text=glowOn and "GLOW ACCENT   ON" or "GLOW ACCENT   OFF"
+  glowButton.BackgroundColor3=glowOn and P.blue or P.panel
+  hero.BackgroundColor3=glowOn and P.blue or P.panel
+end
+glowButton.MouseButton1Click:Connect(function()
+  glowOn=not glowOn
+  setGlow()
+end)
+txt(settings,"Changes apply instantly.",17,146,265,23,11,P.muted)
+
+txt(about,"ABOUT YAFI",17,17,272,28,17,P.text,true)
+txt(about,"EGG HUB  •  VERSION 4.0",17,55,274,22,12,P.cyan,true)
+txt(about,"Built as a custom Roblox interface.",17,95,273,23,12,P.muted)
+txt(about,"Blue arcade style. Clean and compact.",17,125,278,23,12,P.muted)
+
 local function selectTab(name)
-    for key, page in pairs(pages) do
-        local active = (key == name)
-        page.Visible = active
-        tabs[key].BackgroundColor3 = active and C.blue or Color3.fromRGB(95, 179, 231)
-        tabs[key].TextColor3 = C.white
-    end
+  for key,p in pairs(pages) do
+    p.Visible=(key==name)
+    tabButtons[key].BackgroundColor3=(key==name) and P.blue or P.navy
+  end
 end
-for name, b in pairs(tabs) do
-    b.MouseButton1Click:Connect(function() selectTab(name) end)
+for name,b in pairs(tabButtons) do
+  b.MouseButton1Click:Connect(function() selectTab(name) end)
 end
+selectTab("HOME")
 
-text(home, "WELCOME, PLAYER!", UDim2.fromOffset(18, 18), UDim2.new(1, -36, 0, 32), 21, C.ink, true)
-text(home, "Your very own blue egg hub.", UDim2.fromOffset(18, 55), UDim2.new(1, -36, 0, 24), 14, C.ink, false)
-local status = text(home, "●  HUB READY", UDim2.fromOffset(18, 105), UDim2.new(1, -36, 0, 28), 16, C.green, true)
+local reopen=btn(gui,"Y",18,175,45,45,P.blue)
+reopen.Visible=false
+reopen.TextSize=22
+line(reopen,P.cyan,2)
+local function visible(on)
+  main.Visible=on
+  shadow.Visible=on
+  reopen.Visible=not on
+end
+minimize.MouseButton1Click:Connect(function() visible(false) end)
+reopen.MouseButton1Click:Connect(function() visible(true) end)
+close.MouseButton1Click:Connect(function() gui:Destroy() end)
 
-text(settings, "SETTINGS", UDim2.fromOffset(18, 17), UDim2.new(1, -36, 0, 30), 20, C.ink, true)
-local toggle = button(settings, "STATUS INDICATOR: ON", UDim2.fromOffset(18, 65), UDim2.fromOffset(242, 42))
-local statusOn = true
-toggle.MouseButton1Click:Connect(function()
-    statusOn = not statusOn
-    status.Visible = statusOn
-    toggle.Text = statusOn and "STATUS INDICATOR: ON" or "STATUS INDICATOR: OFF"
+local dragging=false
+local startPointer,startPosition,dragInput
+dragArea.InputBegan:Connect(function(input)
+  if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+    dragging=true
+    startPointer=input.Position
+    startPosition=main.Position
+    input.Changed:Connect(function()
+      if input.UserInputState==Enum.UserInputState.End then dragging=false end
+    end)
+  end
 end)
-text(about, "YAFI EGG HUB V3.0", UDim2.fromOffset(18, 20), UDim2.new(1, -36, 0, 30), 20, C.ink, true)
-text(about, "Blue game-inspired interface.", UDim2.fromOffset(18, 65), UDim2.new(1, -36, 0, 24), 14, C.ink, false)
-text(about, "UI only — gameplay tools not added yet.", UDim2.fromOffset(18, 98), UDim2.new(1, -36, 0, 24), 12, C.ink, false)
-
-local collapsed = false
-mini.MouseButton1Click:Connect(function()
-    collapsed = not collapsed
-    panel.Visible = not collapsed
-    main.Size = collapsed and UDim2.fromOffset(428, 82) or UDim2.fromOffset(428, 356)
-    shadow.Size = main.Size
-    mini.Text = collapsed and "+" or "–"
-end)
-exit.MouseButton1Click:Connect(function() gui:Destroy() end)
-
-local dragging, dragInput, startInput, startPosition = false, nil, nil, nil
-header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        startInput = input.Position
-        startPosition = main.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-    end
-end)
-header.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
+dragArea.InputChanged:Connect(function(input)
+  if input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch then
+    dragInput=input
+  end
 end)
 UIS.InputChanged:Connect(function(input)
-    if dragging and input == dragInput then
-        local d = input.Position - startInput
-        main.Position = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + d.X, startPosition.Y.Scale, startPosition.Y.Offset + d.Y)
-        shadow.Position = UDim2.new(main.Position.X.Scale, main.Position.X.Offset + 7, main.Position.Y.Scale, main.Position.Y.Offset + 10)
-    end
+  if dragging and input==dragInput then
+    local d=input.Position-startPointer
+    main.Position=UDim2.new(startPosition.X.Scale,startPosition.X.Offset+d.X,
+      startPosition.Y.Scale,startPosition.Y.Offset+d.Y)
+    shadow.Position=UDim2.new(main.Position.X.Scale,main.Position.X.Offset+6,
+      main.Position.Y.Scale,main.Position.Y.Offset+8)
+  end
 end)
-selectTab("Home")
-print("Yafi Egg Hub v3.0 loaded!")
+print("Yafi Egg Hub V4.0 loaded")

@@ -327,23 +327,29 @@ local function renderFinder()
       end
       local function travelTo(humanoid,root,target,arrival,seconds,phase)
         if _G.YafiTeleportMode then
-          countLabel.Text="Teleporting: "..phase
+          countLabel.Text="Trying teleport: "..phase
           local character=player.Character
-          local before=root.Position
+          if not character or not root.Parent or humanoid.Health<=0 then
+            return false,"character unavailable"
+          end
           local success=pcall(function()
             character:PivotTo(CFrame.new(target+Vector3.new(0,3,0)))
           end)
-          task.wait(1)
-          if success and humanoid.Parent and humanoid.Health>0 and root.Parent
-             and (root.Position-target).Magnitude<=arrival then
-            return true
+          if success then
+            -- Give the server time to correct/validate a client-side position change.
+            for i=1,8 do
+              task.wait(.25)
+              if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then
+                return false,"teleport caused a character reset"
+              end
+            end
+            if (root.Position-target).Magnitude<=arrival then return true,"teleported" end
           end
-          if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then
-            return false,"teleport reset character"
-          end
-          countLabel.Text="Teleport blocked — using safe route"
+          countLabel.Text="Teleport not retained — walking around obstacles"
         end
-        return walkSmart(humanoid,root,target,arrival,seconds,phase)
+        local reached,why=walkSmart(humanoid,root,target,arrival,seconds,phase)
+        if reached then return true,"walked" end
+        return false,why
       end
       locate.MouseButton1Click:Connect(function()
         if _G.YafiPickupBusy then
@@ -387,6 +393,18 @@ local function renderFinder()
             local sent,response,reason=pcall(function()
               return carryRemote:InvokeServer({Uid=uid})
             end)
+            if gui.Parent and sent and response==false and travelError=="teleported" then
+              -- The server can reject a pickup immediately after a local teleport.
+              -- Allow character movement to settle and retry only once.
+              countLabel.Text="Teleport pickup rejected; confirming position..."
+              humanoid:MoveTo(destination)
+              task.wait(1.25)
+              if humanoid.Health>0 and root.Parent and (root.Position-destination).Magnitude<=9 then
+                sent,response,reason=pcall(function()
+                  return carryRemote:InvokeServer({Uid=uid})
+                end)
+              end
+            end
             if not gui.Parent then return end
             if not sent then
               countLabel.Text="Pickup error: "..tostring(response):sub(1,65)

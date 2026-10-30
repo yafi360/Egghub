@@ -220,7 +220,7 @@ txt(tools,"Refreshes every 5 seconds when open.",17,137,274,22,11,P.muted)
 local eggLauncher=btn(gui,"",0,0,46,46,P.deep)
 eggLauncher.Name="EggFinderLauncher"
 eggLauncher.AnchorPoint=Vector2.new(1,0.5)
-eggLauncher.Position=UDim2.new(1,-77,0.265,0)
+eggLauncher.Position=UDim2.new(1,-75,0.265,0)
 eggLauncher.Size=UDim2.fromOffset(42,42)
 eggLauncher.BackgroundTransparency=1
 eggLauncher.ZIndex=30
@@ -255,7 +255,7 @@ line(dot,Color3.fromRGB(155,161,174),1)
 
 -- An expanded overlay preserves the V4 hub's compact navigation.
 local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(1,0),
-  Position=UDim2.new(1,-95,0,62),Size=UDim2.fromOffset(490,440),
+  Position=UDim2.new(1,-76,0,70),Size=UDim2.fromOffset(490,440),
   BackgroundColor3=P.deep,BorderSizePixel=0,Visible=false,ZIndex=15})
 round(finder,17)
 line(finder,P.cyan,2)
@@ -267,7 +267,7 @@ txt(titleBar,"STEAL PANEL  /  YAFI",17,6,360,29,20,P.text,true).ZIndex=17
 local finderTab=btn(gui,">",0,0,46,46,Color3.fromRGB(218,34,40))
 finderTab.Name="FinderEdgeTab"
 finderTab.AnchorPoint=Vector2.new(1,.5)
-finderTab.Position=UDim2.new(1,-98,0,310)
+finderTab.Position=UDim2.new(1,-76,0,310)
 finderTab.Font=Enum.Font.GothamBlack
 finderTab.TextSize=29
 finderTab.ZIndex=50
@@ -348,61 +348,11 @@ local function renderFinder()
       locate.ZIndex=20
       locate.TextSize=13
       locate.Font=Enum.Font.GothamBlack
-      local function walkSmart(humanoid,root,target,arrival,seconds,phase,token,checkCarry)
-        local deadline=os.clock()+seconds
-        local attempts=0
-        while gui.Parent and _G.YafiTripToken==token and os.clock()<deadline do
-          if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then return false,"character unavailable" end
-          if checkCarry and carryObserved and carryingNow==false then return false,"egg dropped; stopped return" end
-          if (root.Position-target).Magnitude<=arrival then return true end
-          attempts=attempts+1
-          if _G.YafiTripToken~=token then return false,"target changed" end
-          countLabel.Text=phase.." (route "..attempts..")"
-          local path=PathfindingService:CreatePath({AgentRadius=2,AgentHeight=5,AgentCanJump=true,WaypointSpacing=12})
-          -- Keep moving while the route is being computed rather than standing still.
-          humanoid:MoveTo(target)
-          local computed=pcall(function() path:ComputeAsync(root.Position,target) end)
-          local points={}
-          if computed and path.Status==Enum.PathStatus.Success then
-            points=path:GetWaypoints()
-          else
-            points={{Position=target,Action=Enum.PathWaypointAction.Walk}}
-          end
-          local blocked=false
-          for _,point in ipairs(points) do
-            if (root.Position-target).Magnitude<=arrival then return true end
-            if not gui.Parent or _G.YafiTripToken~=token or os.clock()>deadline then return false,"target changed" end
-            if point.Action==Enum.PathWaypointAction.Jump then humanoid.Jump=true end
-            humanoid:MoveTo(point.Position)
-            local waypointDeadline=math.min(deadline,os.clock()+math.max(4,(root.Position-point.Position).Magnitude/math.max(8,humanoid.WalkSpeed)*3))
-            local previous=root.Position
-            local stagnation=0
-            while os.clock()<waypointDeadline and gui.Parent and _G.YafiTripToken==token do
-              if (root.Position-target).Magnitude<=arrival then return true end
-              if (root.Position-point.Position).Magnitude<=7 then break end
-              task.wait(.2)
-              if _G.YafiTripToken~=token then return false,"target changed" end
-              if checkCarry and carryObserved and carryingNow==false then return false,"egg dropped; stopped return" end
-              if (root.Position-previous).Magnitude<.45 then stagnation=stagnation+.2 else stagnation=0 end
-              previous=root.Position
-              if stagnation>=3.2 then blocked=true break end
-              if humanoid.Health<=0 then return false,"character died" end
-            end
-            if blocked or (root.Position-point.Position).Magnitude>9 then break end
-          end
-          task.wait(.2)
-        end
-        return false,_G.YafiTripToken~=token and "target changed" or "route blocked or timed out"
-      end
-      local function travelTo(humanoid,root,target,arrival,seconds,phase,token,checkCarry)
-        if _G.YafiTripToken~=token then return false,"target changed" end
-        return walkSmart(humanoid,root,target,arrival,seconds,phase,token,checkCarry)
-      end
       locate.MouseButton1Click:Connect(function()
-        -- A new selection invalidates any running journey.
-        _G.YafiTripToken=(_G.YafiTripToken or 0)+1
-        local token=_G.YafiTripToken
-        _G.YafiPickupBusy=true
+        if _G.YafiPickupBusy then
+          countLabel.Text="A pickup test is already running"
+          return
+        end
         local raw=egg.raw or {}
         local uid=raw.Uid or raw.UID or raw.uid
         local cf=raw.BottomCFrame
@@ -414,25 +364,50 @@ local function renderFinder()
           countLabel.Text="Egg is not available: "..tostring(raw.State)
           return
         end
-        local thisGui=gui
+        _G.YafiPickupBusy=true
         task.spawn(function()
-          local activeHumanoid
-          local savedSpeed
           local ok,err=pcall(function()
             local character=player.Character
             local humanoid=character and character:FindFirstChildWhichIsA("Humanoid")
             local root=character and character:FindFirstChild("HumanoidRootPart")
             if not humanoid or not root then
-              if _G.YafiTripToken~=token then return end
               countLabel.Text="Character not ready"
               return
             end
-            activeHumanoid=humanoid
-            if not _G.YafiSavedSpeed then _G.YafiSavedSpeed=humanoid.WalkSpeed end
-            savedSpeed=_G.YafiSavedSpeed
-            local flashSpeed=48
-            humanoid.WalkSpeed=flashSpeed
-            if _G.YafiTripToken~=token then return end
+            local destination=cf.Position
+            local limit=os.clock()+35
+            countLabel.Text="Walking to "..egg.name.." (current server)"
+            while gui.Parent and os.clock()<limit do
+              local dist=(root.Position-destination).Magnitude
+              if dist<=9 then break end
+              humanoid:MoveTo(destination)
+              task.wait(.45)
+              if humanoid.Health<=0 then
+                countLabel.Text="Character died; pickup cancelled"
+                return
+              end
+            end
+            local distance=(root.Position-destination).Magnitude
+            if distance>9 then
+              countLabel.Text=string.format("Could not reach %s (%.0f studs away)",egg.name,distance)
+              return
+            end
+            local carryRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggCarry",true)
+            if not carryRemote or not carryRemote:IsA("RemoteFunction") then
+              countLabel.Text="Carry request unavailable"
+              return
+            end
+            countLabel.Text="Near "..egg.name.."; requesting pickup..."
+            local sent,response,reason=pcall(function()
+              return carryRemote:InvokeServer({Uid=uid})
+            end)
+            if not gui.Parent then return end
+            if not sent then
+              countLabel.Text="Pickup error: "..tostring(response):sub(1,65)
+            elseif response==false or response==nil then
+              countLabel.Text="Server rejected pickup: "..tostring(reason or "conditions not met"):sub(1,45)
+            else
+              countLabel.Text="Egg picked up — finding your base..."
               local plots=workspace:FindFirstChild("Plots")
               local ownPlot
               local stateRemote=RS:FindFirstChild("RF/Homestead/AskState",true)
@@ -463,66 +438,33 @@ local function renderFinder()
               end
               local area=ownPlot and ownPlot:FindFirstChild("ToUpdate") and ownPlot.ToUpdate:FindFirstChild("PetArea")
               if not area or not area:IsA("BasePart") then
-                countLabel.Text="Could not identify your base; trip cancelled"
+                countLabel.Text="Picked up "..egg.name.." — could not identify your base"
                 return
               end
-
-            local destination=cf.Position
-            local arrived,travelError=travelTo(humanoid,root,destination,9,60,"Flash to "..egg.name,token)
-            if not arrived then
-              if _G.YafiTripToken~=token then return end
-              countLabel.Text="Cannot reach "..egg.name..": "..tostring(travelError)
-              return
-            end
-            if _G.YafiTripToken~=token then return end
-            local carryRemote=RS:FindFirstChild("RF/EggWorld/AskFieldEggCarry",true)
-            if not carryRemote or not carryRemote:IsA("RemoteFunction") then
-              countLabel.Text="Carry request unavailable"
-              return
-            end
-            countLabel.Text="Near "..egg.name.."; requesting pickup..."
-            local sent,response,reason=pcall(function()
-              return carryRemote:InvokeServer({Uid=uid})
-            end)
-            if not gui.Parent or _G.YafiTripToken~=token then return end
-            if not sent then
-              countLabel.Text="Pickup error: "..tostring(response):sub(1,65)
-            elseif response==false or response==nil then
-              countLabel.Text="Server rejected pickup: "..tostring(reason or "conditions not met"):sub(1,45)
-            else
-              -- Do not sprint while carrying: the game can drop the egg after a
-              -- high-displacement move. Restore the server's normal carry pace.
-              humanoid.WalkSpeed=savedSpeed
-              countLabel.Text="Pickup accepted — returning immediately"
-              if _G.YafiTripToken~=token then return end
-              if carryObserved and carryingNow==false then
-                countLabel.Text="Egg was dropped before return; stopped"
-                return
-              end
-              countLabel.Text="Egg picked up — finding your base..."
               local target=area.Position
-              humanoid:MoveTo(target)
               countLabel.Text="Carrying "..egg.name.." home..."
-              local reached,homeError=travelTo(humanoid,root,target,5,130,"Safe return "..egg.name,token,true)
-              if _G.YafiTripToken~=token then return end
-              if reached then
-                countLabel.Text="Reached base with "..egg.name.." — verify claim"
+              local homeDeadline=os.clock()+65
+              while gui.Parent and os.clock()<homeDeadline do
+                if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then
+                  countLabel.Text="Return interrupted: character unavailable"
+                  return
+                end
+                local remaining=(root.Position-target).Magnitude
+                if remaining<=5 then break end
+                humanoid:MoveTo(target)
+                task.wait(.45)
+              end
+              if (root.Position-target).Magnitude<=5 then
+                countLabel.Text="Reached your base with "..egg.name.." — verify claim"
               else
-                countLabel.Text="Return incomplete: "..tostring(homeError)
+                countLabel.Text="Return incomplete — move to your base manually"
               end
             end
           end)
-          if activeHumanoid and activeHumanoid.Parent and savedSpeed then
-            -- Only current journey restores speed; previous canceled trip must not overwrite the next.
-            if _G.YafiTripToken==token then
-              activeHumanoid.WalkSpeed=savedSpeed
-              _G.YafiSavedSpeed=nil
-            end
-          end
-          if not ok and gui.Parent and _G.YafiTripToken==token then
+          if not ok and gui.Parent then
             countLabel.Text="Test error: "..tostring(err):sub(1,75)
           end
-          if thisGui==gui and _G.YafiTripToken==token then _G.YafiPickupBusy=false end
+          _G.YafiPickupBusy=false
         end)
       end)
     end
@@ -581,7 +523,7 @@ local function setFinderOpen(on)
   finder.Visible=on
   finderTab.Text=on and "<" or ">"
   -- Arrow is accessible beside the panel, or on the right when hidden.
-  finderTab.Position=on and UDim2.new(1,-412,0,310) or UDim2.new(1,-98,0,310)
+  finderTab.Position=on and UDim2.new(1,-409,0,310) or UDim2.new(1,-76,0,310)
   eggLauncher.Visible=not on
   finderTab.ZIndex=50
   if on then task.spawn(refreshFinder) end
@@ -617,9 +559,9 @@ glowButton.MouseButton1Click:Connect(function()
   glowOn=not glowOn
   setGlow()
 end)
-local speedToggle=btn(settings,"MOVEMENT: FLASH SPEED",16,137,274,37,P.blue)
+local speedToggle=btn(settings,"MOVEMENT: NORMAL WALK",16,137,274,37,P.panel)
 speedToggle.TextSize=12
-txt(settings,"48 speed outbound; normal when carrying.",17,183,274,20,10,P.muted)
+txt(settings,"Stable pickup and return restored.",17,183,274,20,10,P.muted)
 
 txt(about,"ABOUT YAFI",17,17,272,28,17,P.text,true)
 txt(about,"EGG HUB  •  VERSION 4.0",17,55,274,22,12,P.cyan,true)

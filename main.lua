@@ -216,32 +216,42 @@ local finderButton=btn(tools,"OPEN EGG FINDER",16,81,274,42,P.blue)
 txt(tools,"Refreshes every 5 seconds when open.",17,137,274,22,11,P.muted)
 
 -- Compact launcher above the game's egg menu (right-side HUD).
-local eggLauncher=btn(gui,"",0,0,48,48,P.deep)
+-- Transparent touch target; the Pokeball itself is a true circular frame.
+local eggLauncher=btn(gui,"",0,0,46,46,P.deep)
 eggLauncher.Name="EggFinderLauncher"
 eggLauncher.AnchorPoint=Vector2.new(1,0.5)
--- Above the game's right-side egg button; launcher remains visible when finder is closed.
 eggLauncher.Position=UDim2.new(1,-18,0.375,0)
-eggLauncher.Size=UDim2.fromOffset(44,44)
+eggLauncher.Size=UDim2.fromOffset(46,46)
+eggLauncher.BackgroundTransparency=1
 eggLauncher.ZIndex=30
-line(eggLauncher,P.cyan,2)
-local ball=ui("Frame",eggLauncher,{AnchorPoint=Vector2.new(.5,.5),
-  Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(36,36),
-  BackgroundColor3=Color3.fromRGB(247,248,250),BorderSizePixel=0,
-  ClipsDescendants=true,ZIndex=31})
-round(ball,19)
-line(ball,Color3.fromRGB(20,24,32),2)
-local redHalf=ui("Frame",ball,{Size=UDim2.new(1,0,.50,0),
-  BackgroundColor3=Color3.fromRGB(231,55,65),BorderSizePixel=0,ZIndex=32})
-local seam=ui("Frame",ball,{Position=UDim2.new(0,0,.47,0),Size=UDim2.new(1,0,0,4),
-  BackgroundColor3=Color3.fromRGB(24,28,42),BorderSizePixel=0,ZIndex=33})
-local center=ui("Frame",ball,{AnchorPoint=Vector2.new(.5,.5),
-  Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(12,12),
-  BackgroundColor3=Color3.fromRGB(24,28,42),BorderSizePixel=0,ZIndex=34})
-round(center,7)
-local dot=ui("Frame",center,{AnchorPoint=Vector2.new(.5,.5),
-  Position=UDim2.fromScale(.5,.5),Size=UDim2.fromOffset(6,6),
-  BackgroundColor3=Color3.fromRGB(250,250,250),BorderSizePixel=0,ZIndex=35})
-round(dot,4)
+
+local ball=ui("Frame",eggLauncher,{
+  AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),
+  Size=UDim2.fromOffset(39,39),BackgroundColor3=Color3.new(1,1,1),
+  BorderSizePixel=0,ZIndex=31})
+round(ball,24)
+ui("UIGradient",ball,{Rotation=90,Color=ColorSequence.new({
+  ColorSequenceKeypoint.new(0,Color3.fromRGB(236,45,52)),
+  ColorSequenceKeypoint.new(.485,Color3.fromRGB(236,45,52)),
+  ColorSequenceKeypoint.new(.49,Color3.fromRGB(255,255,255)),
+  ColorSequenceKeypoint.new(1,Color3.fromRGB(255,255,255))
+})})
+line(ball,Color3.fromRGB(17,22,29),3)
+local seam=ui("Frame",ball,{
+  AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),
+  Size=UDim2.new(1,0,0,5),BackgroundColor3=Color3.fromRGB(17,22,29),
+  BorderSizePixel=0,ZIndex=32})
+local center=ui("Frame",ball,{
+  AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),
+  Size=UDim2.fromOffset(17,17),BackgroundColor3=Color3.fromRGB(17,22,29),
+  BorderSizePixel=0,ZIndex=33})
+round(center,12)
+local dot=ui("Frame",center,{
+  AnchorPoint=Vector2.new(.5,.5),Position=UDim2.fromScale(.5,.5),
+  Size=UDim2.fromOffset(10,10),BackgroundColor3=Color3.fromRGB(255,255,255),
+  BorderSizePixel=0,ZIndex=34})
+round(dot,7)
+line(dot,Color3.fromRGB(155,161,174),1)
 
 -- An expanded overlay preserves the V4 hub's compact navigation.
 local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(1,0),

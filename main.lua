@@ -10,6 +10,7 @@ local previous = parent:FindFirstChild("YafiEggHub")
 if previous then previous:Destroy() end
 -- Reset stale state from a previous execution.
 _G.YafiPickupBusy=false
+_G.YafiTripToken=(_G.YafiTripToken or 0)+1
 
 local P = {
   deep=Color3.fromRGB(9,19,44), navy=Color3.fromRGB(16,31,65),
@@ -285,10 +286,10 @@ local function renderFinder()
       locate.ZIndex=20
       locate.TextSize=13
       locate.Font=Enum.Font.GothamBlack
-      local function walkSmart(humanoid,root,target,arrival,seconds,phase)
+      local function walkSmart(humanoid,root,target,arrival,seconds,phase,token)
         local deadline=os.clock()+seconds
         local attempts=0
-        while gui.Parent and os.clock()<deadline do
+        while gui.Parent and _G.YafiTripToken==token and os.clock()<deadline do
           if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then return false,"character unavailable" end
           if (root.Position-target).Magnitude<=arrival then return true end
           attempts=attempts+1
@@ -304,16 +305,17 @@ local function renderFinder()
           local blocked=false
           for _,point in ipairs(points) do
             if (root.Position-target).Magnitude<=arrival then return true end
-            if not gui.Parent or os.clock()>deadline then break end
+            if not gui.Parent or _G.YafiTripToken~=token or os.clock()>deadline then return false,"target changed" end
             if point.Action==Enum.PathWaypointAction.Jump then humanoid.Jump=true end
             humanoid:MoveTo(point.Position)
             local waypointDeadline=math.min(deadline,os.clock()+math.max(2.5,(root.Position-point.Position).Magnitude/math.max(8,humanoid.WalkSpeed)*2.5))
             local previous=root.Position
             local stagnation=0
-            while os.clock()<waypointDeadline and gui.Parent do
+            while os.clock()<waypointDeadline and gui.Parent and _G.YafiTripToken==token do
               if (root.Position-target).Magnitude<=arrival then return true end
               if (root.Position-point.Position).Magnitude<=3.5 then break end
               task.wait(.2)
+              if _G.YafiTripToken~=token then return false,"target changed" end
               if (root.Position-previous).Magnitude<.45 then stagnation=stagnation+.2 else stagnation=0 end
               previous=root.Position
               if stagnation>=1.8 then blocked=true break end
@@ -323,39 +325,17 @@ local function renderFinder()
           end
           task.wait(.2)
         end
-        return false,"route blocked or timed out"
+        return false,_G.YafiTripToken~=token and "target changed" or "route blocked or timed out"
       end
-      local function travelTo(humanoid,root,target,arrival,seconds,phase)
-        if _G.YafiTeleportMode then
-          countLabel.Text="Trying teleport: "..phase
-          local character=player.Character
-          if not character or not root.Parent or humanoid.Health<=0 then
-            return false,"character unavailable"
-          end
-          local success=pcall(function()
-            character:PivotTo(CFrame.new(target+Vector3.new(0,3,0)))
-          end)
-          if success then
-            -- Give the server time to correct/validate a client-side position change.
-            for i=1,8 do
-              task.wait(.25)
-              if not humanoid.Parent or humanoid.Health<=0 or not root.Parent then
-                return false,"teleport caused a character reset"
-              end
-            end
-            if (root.Position-target).Magnitude<=arrival then return true,"teleported" end
-          end
-          countLabel.Text="Teleport not retained — walking around obstacles"
-        end
-        local reached,why=walkSmart(humanoid,root,target,arrival,seconds,phase)
-        if reached then return true,"walked" end
-        return false,why
+      local function travelTo(humanoid,root,target,arrival,seconds,phase,token)
+        if _G.YafiTripToken~=token then return false,"target changed" end
+        return walkSmart(humanoid,root,target,arrival,seconds,phase,token)
       end
       locate.MouseButton1Click:Connect(function()
-        if _G.YafiPickupBusy then
-          countLabel.Text="A pickup test is already running"
-          return
-        end
+        -- A new selection invalidates any running journey.
+        _G.YafiTripToken=(_G.YafiTripToken or 0)+1
+        local token=_G.YafiTripToken
+        _G.YafiPickupBusy=true
         local raw=egg.raw or {}
         local uid=raw.Uid or raw.UID or raw.uid
         local cf=raw.BottomCFrame
@@ -367,9 +347,10 @@ local function renderFinder()
           countLabel.Text="Egg is not available: "..tostring(raw.State)
           return
         end
-        _G.YafiPickupBusy=true
         local thisGui=gui
         task.spawn(function()
+          local activeHumanoid
+          local savedSpeed
           local ok,err=pcall(function()
             local character=player.Character
             local humanoid=character and character:FindFirstChildWhichIsA("Humanoid")
@@ -378,8 +359,12 @@ local function renderFinder()
               countLabel.Text="Character not ready"
               return
             end
+            activeHumanoid=humanoid
+            savedSpeed=humanoid.WalkSpeed
+            local flashSpeed=110
+            humanoid.WalkSpeed=flashSpeed
             local destination=cf.Position
-            local arrived,travelError=travelTo(humanoid,root,destination,9,60,"Navigating to "..egg.name)
+            local arrived,travelError=travelTo(humanoid,root,destination,9,60,"Flash to "..egg.name,token)
             if not arrived then
               countLabel.Text="Cannot reach "..egg.name..": "..tostring(travelError)
               return
@@ -393,7 +378,7 @@ local function renderFinder()
             local sent,response,reason=pcall(function()
               return carryRemote:InvokeServer({Uid=uid})
             end)
-            if gui.Parent and sent and response==false and travelError=="teleported" then
+            if false and gui.Parent and sent and response==false and travelError=="teleported" then
               -- The server can reject a pickup immediately after a local teleport.
               -- Allow character movement to settle and retry only once.
               countLabel.Text="Teleport pickup rejected; confirming position..."
@@ -405,7 +390,7 @@ local function renderFinder()
                 end)
               end
             end
-            if not gui.Parent then return end
+            if not gui.Parent or _G.YafiTripToken~=token then return end
             if not sent then
               countLabel.Text="Pickup error: "..tostring(response):sub(1,65)
             elseif response==false or response==nil then
@@ -447,7 +432,7 @@ local function renderFinder()
               end
               local target=area.Position
               countLabel.Text="Carrying "..egg.name.." home..."
-              local reached,homeError=travelTo(humanoid,root,target,5,100,"Returning "..egg.name.." home")
+              local reached,homeError=travelTo(humanoid,root,target,5,100,"Flash return "..egg.name,token)
               if reached then
                 countLabel.Text="Reached your base with "..egg.name.." — verify claim"
               else
@@ -455,10 +440,14 @@ local function renderFinder()
               end
             end
           end)
-          if not ok and gui.Parent then
+          if activeHumanoid and activeHumanoid.Parent and savedSpeed then
+            -- Only current journey restores speed; previous canceled trip must not overwrite the next.
+            if _G.YafiTripToken==token then activeHumanoid.WalkSpeed=savedSpeed end
+          end
+          if not ok and gui.Parent and _G.YafiTripToken==token then
             countLabel.Text="Test error: "..tostring(err):sub(1,75)
           end
-          if thisGui==gui then _G.YafiPickupBusy=false end
+          if thisGui==gui and _G.YafiTripToken==token then _G.YafiPickupBusy=false end
         end)
       end)
     end
@@ -529,7 +518,7 @@ task.spawn(function()
   end
 end)
 
-_G.YafiTeleportMode=true
+_G.YafiTeleportMode=false
 txt(settings,"CUSTOMIZE",17,16,270,27,17,P.text,true)
 txt(settings,"Your hub, your vibe.",17,44,260,22,12,P.muted)
 local glowButton=btn(settings,"GLOW ACCENT   ON",16,83,273,42,P.blue)
@@ -544,14 +533,9 @@ glowButton.MouseButton1Click:Connect(function()
   glowOn=not glowOn
   setGlow()
 end)
-local teleportToggle=btn(settings,"MOVEMENT: TELEPORT",16,137,274,37,P.blue)
-teleportToggle.TextSize=12
-teleportToggle.MouseButton1Click:Connect(function()
-  _G.YafiTeleportMode=not _G.YafiTeleportMode
-  teleportToggle.Text=_G.YafiTeleportMode and "MOVEMENT: TELEPORT" or "MOVEMENT: WALK"
-  teleportToggle.BackgroundColor3=_G.YafiTeleportMode and P.blue or P.panel
-end)
-txt(settings,"Teleport may be blocked or reset you.",17,183,274,20,10,P.muted)
+local speedToggle=btn(settings,"MOVEMENT: FLASH SPEED",16,137,274,37,P.blue)
+speedToggle.TextSize=12
+txt(settings,"110 speed during trips; normal after.",17,183,274,20,10,P.muted)
 
 txt(about,"ABOUT YAFI",17,17,272,28,17,P.text,true)
 txt(about,"EGG HUB  •  VERSION 4.0",17,55,274,22,12,P.cyan,true)

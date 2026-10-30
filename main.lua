@@ -369,8 +369,6 @@ local HttpService=game:GetService("HttpService")
 local TeleportService=game:GetService("TeleportService")
 local hunterBusy=false
 local function showHunter(on)
-  halloweenView.Visible=false
-  halloweenButton.Text="🎃 EVENT"
   serverHunter.Visible=on
   list.Visible=not on
   petSearch.Visible=not on

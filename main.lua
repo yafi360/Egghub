@@ -351,14 +351,14 @@ local serverHunter=ui("Frame",finder,{Name="ServerHunter",Position=UDim2.fromOff
 round(serverHunter,10)
 local hunterTitle=txt(serverHunter,"PUBLIC SERVERS  /  EGG DATA UNKNOWN",9,8,445,22,13,P.cyan,true)
 hunterTitle.ZIndex=23
-local hunterNote=txt(serverHunter,"Join a server to scan its eggs. No remote egg previews.",9,32,445,24,13,P.muted,false)
+local hunterNote=txt(serverHunter,"Join a server to scan its eggs. No remote egg previews.",9,69,445,22,13,P.muted,false)
 hunterNote.ZIndex=23
-local hunterRefresh=btn(serverHunter,"FIND SERVERS",10,62,205,37,P.blue)
+local hunterRefresh=btn(serverHunter,"FIND SERVERS",10,99,205,37,P.blue)
 hunterRefresh.ZIndex=24
-local hunterBack=btn(serverHunter,"BACK TO EGGS",226,62,224,37,P.panel)
+local hunterBack=btn(serverHunter,"BACK TO EGGS",226,99,224,37,P.panel)
 hunterBack.ZIndex=24
 local hunterList=ui("ScrollingFrame",serverHunter,{
-  Position=UDim2.fromOffset(9,108),Size=UDim2.fromOffset(442,210),
+  Position=UDim2.fromOffset(9,144),Size=UDim2.fromOffset(442,174),
   BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=4,
   CanvasSize=UDim2.fromOffset(0,0),ZIndex=23})
 local hunterLayout=ui("UIListLayout",hunterList,{Padding=UDim.new(0,5),SortOrder=Enum.SortOrder.LayoutOrder})
@@ -459,9 +459,9 @@ privateButton.Position=UDim2.fromOffset(10,62)
 -- Existing FIND SERVERS button is retained; the private view lives above it
 -- only when opened from the explicit PRIVATE tab below.
 privateButton.Position=UDim2.fromOffset(10,62)
-local privateTab=btn(serverHunter,"MY SCANS",10,9,112,26,P.blue)
+local privateTab=btn(serverHunter,"MY SCANS",10,35,112,29,P.blue)
 privateTab.ZIndex=28
-local publicTab=btn(serverHunter,"PUBLIC",125,9,89,26,P.panel)
+local publicTab=btn(serverHunter,"PUBLIC",128,35,95,29,P.panel)
 publicTab.ZIndex=28
 privateButton.Visible=false
 local privateView=ui("Frame",serverHunter,{Size=UDim2.fromScale(1,1),BackgroundColor3=P.navy,

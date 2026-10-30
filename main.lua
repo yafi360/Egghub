@@ -435,6 +435,125 @@ local function fetchServers()
 end
 hunterRefresh.MouseButton1Click:Connect(fetchServers)
 
+-- PRIVATE HUNTER: local-only, previously observed egg snapshots.
+-- File persistence requires executor file APIs; never represents live remote egg data.
+local privateFile="yafi_private_hunter.json"
+local reports={}
+local function loadReports()
+  if type(readfile)~="function" then return end
+  pcall(function()
+    if type(isfile)=="function" and not isfile(privateFile) then return end
+    local data=HttpService:JSONDecode(readfile(privateFile))
+    if type(data)=="table" then reports=data end
+  end)
+end
+local function saveReports()
+  if type(writefile)~="function" then return end
+  pcall(function() writefile(privateFile,HttpService:JSONEncode(reports)) end)
+end
+loadReports()
+local privateButton=btn(serverHunter,"PRIVATE HUNTER",10,62,205,37,P.blue)
+privateButton.ZIndex=27
+hunterRefresh.Position=UDim2.fromOffset(10,62)
+hunterRefresh.Visible=true
+privateButton.Position=UDim2.fromOffset(10,62)
+-- Existing FIND SERVERS button is retained; the private view lives above it
+-- only when opened from the explicit PRIVATE tab below.
+privateButton.Position=UDim2.fromOffset(10,62)
+local privateTab=btn(serverHunter,"MY SCANS",10,9,112,26,P.blue)
+privateTab.ZIndex=28
+local publicTab=btn(serverHunter,"PUBLIC",125,9,89,26,P.panel)
+publicTab.ZIndex=28
+privateButton.Visible=false
+local privateView=ui("Frame",serverHunter,{Size=UDim2.fromScale(1,1),BackgroundColor3=P.navy,
+  BorderSizePixel=0,Visible=false,ZIndex=29})
+round(privateView,10)
+local privateHeading=txt(privateView,"PRIVATE HUNTER  /  SAVED SIGHTINGS",12,8,430,24,14,P.cyan,true)
+privateHeading.ZIndex=30
+local privateInfo=txt(privateView,"Only servers you personally scanned. Old eggs may be gone.",12,34,440,25,11,P.muted)
+privateInfo.ZIndex=30
+local scanHere=btn(privateView,"SCAN THIS SERVER",12,65,211,36,P.blue)
+scanHere.ZIndex=31
+local showPublic=btn(privateView,"PUBLIC SERVERS",235,65,210,36,P.panel)
+showPublic.ZIndex=31
+local reportList=ui("ScrollingFrame",privateView,{Position=UDim2.fromOffset(10,110),
+  Size=UDim2.fromOffset(438,182),BackgroundTransparency=1,BorderSizePixel=0,
+  ScrollBarThickness=4,CanvasSize=UDim2.fromOffset(0,0),ZIndex=31})
+ui("UIListLayout",reportList,{Padding=UDim.new(0,4),SortOrder=Enum.SortOrder.LayoutOrder})
+local function renderReports()
+  for _,c in ipairs(reportList:GetChildren()) do
+    if c:IsA("Frame") then c:Destroy() end
+  end
+  local sorted={}
+  for serverId,r in pairs(reports) do
+    if type(r)=="table" and type(r.epoch)=="number" then
+      table.insert(sorted,{id=serverId,report=r})
+    end
+  end
+  table.sort(sorted,function(a,b) return (a.report.bestRate or 0)>(b.report.bestRate or 0) end)
+  for i,entry in ipairs(sorted) do
+    if i>30 then break end
+    local r=entry.report
+    local elapsed=math.max(0,os.time()-r.epoch)
+    local age=elapsed<60 and (elapsed.."s") or (math.floor(elapsed/60).."m")
+    local row=ui("Frame",reportList,{Size=UDim2.new(1,-7,0,49),BackgroundColor3=P.deep,
+      BorderSizePixel=0,LayoutOrder=i,ZIndex=32})
+    round(row,7)
+    local label=txt(row,tostring(r.bestName or "No eggs").." | "..money(r.bestRate).." /s",8,3,315,20,12,P.text,true)
+    label.ZIndex=33
+    local sub=txt(row,"Observed "..age.." ago  |  "..tostring(r.count or 0).." eggs",8,25,315,18,10,P.muted)
+    sub.ZIndex=33
+    local hop=btn(row,"HOP",345,8,77,33,P.green)
+    hop.ZIndex=33
+    hop.MouseButton1Click:Connect(function()
+      if _G.YafiPickupBusy then privateInfo.Text="Finish current STEAL trip before hopping" return end
+      privateInfo.Text="Hopping to previously observed server; eggs not guaranteed..."
+      local success,err=pcall(function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId,entry.id,player)
+      end)
+      if not success then privateInfo.Text="Hop failed: "..tostring(err):sub(1,75) end
+    end)
+  end
+  reportList.CanvasSize=UDim2.fromOffset(0,math.min(#sorted,30)*53)
+  if #sorted==0 then privateInfo.Text="No scans yet. Press SCAN THIS SERVER first." end
+end
+local function scanCurrent()
+  privateInfo.Text="Scanning current server..."
+  task.spawn(function()
+    local remote=RS:FindFirstChild("RF/EggWorld/AskFieldEggSnapshot",true)
+    local ok,result=false,nil
+    if remote and remote:IsA("RemoteFunction") then
+      ok,result=pcall(function() return remote:InvokeServer() end)
+    end
+    if not gui.Parent then return end
+    if not ok or type(result)~="table" or type(result.Records)~="table" then
+      privateInfo.Text="Snapshot unavailable; nothing saved"
+      return
+    end
+    local bestName,bestRate,count="None",0,0
+    for _,rec in pairs(result.Records) do
+      if type(rec)=="table" and (rec.State==nil or rec.State=="Slot") then
+        count=count+1
+        local name=tostring(rec.AssetCategory or "Unknown")
+        local def=type(assets)=="table" and assets[name] or nil
+        local base=type(def)=="table" and tonumber(def.EarningRate) or nil
+        local estimated=earned(rec,base) or base or 0
+        if estimated>bestRate then bestName,bestRate=name,estimated end
+      end
+    end
+    reports[game.JobId]={epoch=os.time(),bestName=bestName,bestRate=bestRate,count=count}
+    saveReports()
+    renderReports()
+    privateInfo.Text="Saved "..count.." egg observations for this server."
+  end)
+end
+scanHere.MouseButton1Click:Connect(scanCurrent)
+privateTab.MouseButton1Click:Connect(function() privateView.Visible=true renderReports() end)
+publicTab.MouseButton1Click:Connect(function() privateView.Visible=false end)
+showPublic.MouseButton1Click:Connect(function() privateView.Visible=false end)
+-- Rejoin needs a fresh load unless the user's client supports autorun on teleport.
+-- We do not automatically hop to unknown servers or assume reports stay live.
+
 -- Carry state is authoritative when this game version publishes the event.
 local carryObserved=false
 local carryingNow=nil

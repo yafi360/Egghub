@@ -111,14 +111,79 @@ local statusDot=ui("Frame",home,{Position=UDim2.fromOffset(18,187),Size=UDim2.fr
 round(statusDot,5)
 txt(home,"READY TO EXPLORE",34,179,245,23,12,P.green,true)
 
-txt(tools,"TOOLBOX",17,16,265,27,17,P.text,true)
-txt(tools,"A home for upcoming game tools.",17,49,268,24,12,P.muted)
-local toolCard=ui("Frame",tools,{Position=UDim2.fromOffset(15,86),Size=UDim2.fromOffset(276,91),
-  BackgroundColor3=P.panel,BorderSizePixel=0})
-round(toolCard,12)
-line(toolCard,P.line)
-txt(toolCard,"✦  NEW FEATURES",16,12,250,26,15,P.cyan,true)
-txt(toolCard,"This is a UI-only preview.",16,48,240,25,12,P.muted)
+-- Pet Finder searches model names currently replicated to this client.
+-- No remote/server-only or undiscovered pets can be detected this way.
+txt(tools,"PET FINDER",17,11,265,26,17,P.text,true)
+txt(tools,"Search nearby loaded pet models",17,36,272,20,11,P.muted)
+local searchInput=ui("TextBox",tools,{
+  Name="PetSearch",Position=UDim2.fromOffset(15,68),Size=UDim2.fromOffset(184,39),
+  BackgroundColor3=P.panel,BorderSizePixel=0,ClearTextOnFocus=false,
+  PlaceholderText="Pet name...",Text="",TextSize=13,Font=Enum.Font.GothamMedium,
+  TextColor3=P.text,PlaceholderColor3=P.muted,TextXAlignment=Enum.TextXAlignment.Left})
+round(searchInput,9)
+line(searchInput,P.line)
+ui("UIPadding",searchInput,{PaddingLeft=UDim.new(0,10)})
+local findButton=btn(tools,"FIND",205,68,86,39,P.blue)
+local resultCard=ui("Frame",tools,{Position=UDim2.fromOffset(15,116),Size=UDim2.fromOffset(276,97),
+ BackgroundColor3=P.panel,BorderSizePixel=0})
+round(resultCard,11)
+line(resultCard,P.line)
+local resultTitle=txt(resultCard,"ENTER A PET NAME",12,8,254,19,12,P.cyan,true)
+local rows={}
+for i=1,3 do
+ rows[i]=txt(resultCard,"",12,10+i*20,253,20,11,P.muted)
+end
+local activeHighlight
+local function findPet()
+  if activeHighlight then activeHighlight:Destroy() activeHighlight=nil end
+  local query=searchInput.Text:lower():match("^%s*(.-)%s*$")
+  if query=="" then
+    resultTitle.Text="TYPE A PET NAME FIRST"
+    for _,r in ipairs(rows) do r.Text="" end
+    return
+  end
+  local matches={}
+  local char=player.Character
+  for _,obj in ipairs(workspace:GetDescendants()) do
+    if obj:IsA("Model") and obj~=char and (not char or not obj:IsDescendantOf(char))
+      and obj.Name:lower():find(query,1,true) then
+      table.insert(matches,obj)
+      if #matches>=30 then break end
+    end
+  end
+  table.sort(matches,function(a,b)
+    local root=char and char:FindFirstChild("HumanoidRootPart")
+    local function distance(m)
+      local p=m.PrimaryPart or m:FindFirstChildWhichIsA("BasePart",true)
+      return (root and p) and (p.Position-root.Position).Magnitude or math.huge
+    end
+    return distance(a)<distance(b)
+  end)
+  resultTitle.Text=#matches>0 and ("MATCHES FOUND: "..#matches) or "NO VISIBLE MATCHES"
+  for i,r in ipairs(rows) do
+    local m=matches[i]
+    if m then
+      local part=m.PrimaryPart or m:FindFirstChildWhichIsA("BasePart",true)
+      local root=char and char:FindFirstChild("HumanoidRootPart")
+      local distance=(part and root) and math.floor((part.Position-root.Position).Magnitude) or nil
+      r.Text=m.Name..(distance and ("  •  "..distance.." studs") or "")
+    else r.Text="" end
+  end
+  if matches[1] then
+    activeHighlight=Instance.new("Highlight")
+    activeHighlight.Name="YafiPetFinderHighlight"
+    activeHighlight.Adornee=matches[1]
+    activeHighlight.FillColor=P.cyan
+    activeHighlight.FillTransparency=.65
+    activeHighlight.OutlineColor=P.blue
+    activeHighlight.DepthMode=Enum.HighlightDepthMode.Occluded
+    activeHighlight.Parent=gui
+  end
+end
+findButton.MouseButton1Click:Connect(findPet)
+searchInput.FocusLost:Connect(function(enter)
+  if enter then findPet() end
+end)
 
 txt(settings,"CUSTOMIZE",17,16,270,27,17,P.text,true)
 txt(settings,"Your hub, your vibe.",17,44,260,22,12,P.muted)

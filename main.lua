@@ -377,7 +377,7 @@ local function showHunter(on)
   hunterButton.Visible=true
   hunterButton.Text="SERVERS"
 end
--- Server tab binding set below the Halloween panel
+-- Server tab binding set below the server panels
 hunterBack.MouseButton1Click:Connect(function() showHunter(false) end)
 local function fetchServers()
   if hunterBusy then return end
@@ -544,80 +544,12 @@ showPublic.MouseButton1Click:Connect(function() privateView.Visible=false end)
 -- Rejoin needs a fresh load unless the user's client supports autorun on teleport.
 -- We do not automatically hop to unknown servers or assume reports stay live.
 
--- Halloween inspector: read-only discovery, no unverified remote calls.
-local halloweenView=ui("Frame",finder,{Name="HalloweenInspector",
-  Position=UDim2.fromOffset(15,164),Size=UDim2.fromOffset(460,328),
-  BackgroundColor3=P.navy,BorderSizePixel=0,Visible=false,ZIndex=35})
-round(halloweenView,10)
-local halloweenHeading=txt(halloweenView,"HALLOWEEN / EVENT DATA",10,8,405,25,16,P.cyan,true)
-halloweenHeading.ZIndex=36
-local halloweenInfo=txt(halloweenView,"Event records not yet confirmed. No unsafe STEAL links.",10,34,438,25,13,P.muted)
-halloweenInfo.ZIndex=36
-local halloweenScan=btn(halloweenView,"INSPECT EVENT",10,62,210,34,P.blue)
-halloweenScan.ZIndex=37
-local halloweenBack=btn(halloweenView,"BACK TO EGGS",232,62,215,34,P.panel)
-halloweenBack.ZIndex=37
-local halloweenList=ui("ScrollingFrame",halloweenView,{
- Position=UDim2.fromOffset(10,106),Size=UDim2.fromOffset(438,210),
- BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=4,
- CanvasSize=UDim2.fromOffset(0,0),ZIndex=36})
-local halloweenLayout=ui("UIListLayout",halloweenList,{
- Padding=UDim.new(0,3),SortOrder=Enum.SortOrder.LayoutOrder})
-local latest={}
-local stealActions={}
-local eventViewOpen
-local halloweenNames={
- "Voidseer Pumpkin","Bone Emperor","Gorillastein","Soul Phantom","Shelltide Voyager",
- "Phantom Dragon","Werewolf","BloodBloom","Grave Cerberus","Pumpkin Golem",
- "Ghost Reaper","Hexed Pumpkin","Graveyard Brute","Haunted Scorpio","Patchwork Imp",
- "Tombstone Bear","Crowshade","Spirit Knight","Scarecrow","Toadstool",
- "Mimic Chest","Hooded Gerbil","Candlefang","Night Fang","Hollow Bat",
- "Jesterpop","Pumpkin Fiend","Candy Corn","Whiskers"
-}
-local halloweenLookup={}
-for _,name in ipairs(halloweenNames) do halloweenLookup[normalize(name)]=true end
-local function renderHalloweenCatalog()
- for _,child in ipairs(halloweenList:GetChildren()) do
-  if child:IsA("Frame") or child:IsA("TextLabel") then child:Destroy() end
- end
- local label=txt(halloweenList,"Halloween live egg source not identified yet.",8,8,415,30,15,P.text,true)
- label.LayoutOrder=1
- label.ZIndex=38
- local sub=txt(halloweenList,"Incorrect online egg catalog removed. Use INSPECT EVENT to find the real source.",8,45,415,55,13,P.muted)
- sub.TextWrapped=true
- sub.TextTruncate=Enum.TextTruncate.None
- sub.LayoutOrder=2
- sub.ZIndex=38
- halloweenList.CanvasSize=UDim2.fromOffset(0,112)
- halloweenInfo.Text="No verified Halloween egg records or STEAL targets yet"
-end
-local halloweenButton=btn(finder,"🎃 HALLOWEEN",122,49,132,36,Color3.fromRGB(190,94,32))
-halloweenButton.TextSize=13
-halloweenButton.ZIndex=20
 local alertsView
-eventViewOpen=function(on)
- halloweenView.Visible=on
- alertsView.Visible=false
- serverHunter.Visible=false
- list.Visible=not on
- petSearch.Visible=not on
- minIncome.Visible=not on
- refreshBtn.Visible=not on
- hunterButton.Visible=true
- halloweenButton.Text="🎃 HALLOWEEN"
- if on then renderHalloweenCatalog() end
-end
-halloweenButton.MouseButton1Click:Connect(function()
- if halloweenView.Visible then eventViewOpen(false)
- else showHunter(false) eventViewOpen(true) end
-end)
 hunterButton.MouseButton1Click:Connect(function()
  local nextState=not serverHunter.Visible
  alertsView.Visible=false
- eventViewOpen(false)
  showHunter(nextState)
 end)
-halloweenBack.MouseButton1Click:Connect(function() eventViewOpen(false) end)
 -- Community live sightings: third-party reports only, never verified server inventories.
 alertsView=ui("Frame",finder,{Name="LiveEggAlerts",
  Position=UDim2.fromOffset(15,164),Size=UDim2.fromOffset(460,328),
@@ -701,7 +633,6 @@ alertsButton.ZIndex=21
 local function showAlerts(on)
  alertsView.Visible=on
  if on then
-  halloweenView.Visible=false
   serverHunter.Visible=false
   list.Visible=false
   petSearch.Visible=false
@@ -724,87 +655,8 @@ liveEggsTab.TextSize=13
 liveEggsTab.ZIndex=21
 liveEggsTab.MouseButton1Click:Connect(function()
  alertsView.Visible=false
- eventViewOpen(false)
  showHunter(false)
 end)
-
-local function inspectHalloween()
- for _,v in ipairs(halloweenList:GetChildren()) do
-  if v:IsA("TextLabel") or v:IsA("Frame") then v:Destroy() end
- end
- local lines={}
- local function add(line) if #lines<90 then table.insert(lines,tostring(line)) end end
- local keys={"halloween","haunted","graveyard","pumpkin","spectral","swamp","manor","spooky","witch","ghost","cemetery"}
- local function relevant(value)
-  local lower=tostring(value):lower()
-  for _,key in ipairs(keys) do if lower:find(key,1,true) then return true end end
-  return false
- end
- add("HALLOWEEN-SPECIFIC NAMES (excluding generic Event)")
- local found,remotes,eggRemotes={},{},{}
- for _,scope in ipairs({RS,workspace}) do
-  for _,obj in ipairs(scope:GetDescendants()) do
-   if relevant(obj.Name) then
-    found[#found+1]=obj
-    if obj:IsA("RemoteFunction") or obj:IsA("RemoteEvent") then remotes[#remotes+1]=obj end
-   end
-   if scope==RS and (obj:IsA("RemoteFunction") or obj:IsA("RemoteEvent")) then
-    local lower=obj.Name:lower()
-    if (lower:find("egg",1,true) or lower:find("dimension",1,true) or lower:find("world",1,true))
-      and (lower:find("snapshot",1,true) or lower:find("state",1,true) or lower:find("area",1,true)) then
-      eggRemotes[#eggRemotes+1]=obj
-    end
-   end
-  end
- end
- add("Specific objects: "..#found.." | specific remotes: "..#remotes)
- for i=1,math.min(20,#found) do
-  local o=found[i]
-  add(o.ClassName.." | "..o:GetFullName():sub(1,94))
- end
- add("POSSIBLE EGG / AREA DATA REMOTES: "..#eggRemotes)
- for i=1,math.min(18,#eggRemotes) do
-  local o=eggRemotes[i]
-  add(o.ClassName.." | "..o:GetFullName():sub(1,94))
- end
- local snapshot=RS:FindFirstChild("RF/EggWorld/AskFieldEggSnapshot",true)
- if snapshot and snapshot:IsA("RemoteFunction") then
-  local ok,data=pcall(function() return snapshot:InvokeServer() end)
-  if ok and type(data)=="table" and type(data.Records)=="table" then
-   local count,matching,values=0,0,{}
-   for _,rec in pairs(data.Records) do
-    if type(rec)=="table" then
-     count=count+1
-     local eventField=false
-     for key,value in pairs(rec) do
-      if type(value)=="string" and relevant(value) then
-       eventField=true
-       values[tostring(key).."="..value]=true
-      end
-     end
-     if eventField then matching=matching+1 end
-    end
-   end
-   add("CURRENT WORLD SNAPSHOT: "..count.." eggs, "..matching.." Halloween-tagged")
-   local n=0
-   for value in pairs(values) do
-    n=n+1
-    if n>15 then break end
-    add("Egg field: "..value:sub(1,100))
-   end
-  else add("World snapshot could not be read") end
- end
- if #found==0 then add("No Halloween names exposed here; try while in Halloween dimension") end
- for i,entry in ipairs(lines) do
-  local label=txt(halloweenList,entry,4,0,422,22,11,P.text,false)
-  label.Size=UDim2.new(1,-12,0,22)
-  label.LayoutOrder=i
-  label.ZIndex=37
- end
- halloweenList.CanvasSize=UDim2.fromOffset(0,#lines*25)
- halloweenInfo.Text="Specific matches: "..#found..". Scroll for egg/area remotes."
-end
-halloweenScan.MouseButton1Click:Connect(inspectHalloween)
 
 -- Carry state is authoritative when this game version publishes the event.
 local carryObserved=false
@@ -884,7 +736,7 @@ local function renderFinder()
       earnings.ZIndex=19
       local info=txt(row,string.format("x%.2f  •  %s",egg.scale,tostring(egg.mutation)),
         78,54,240,19,13,
-        normalize(egg.mutation):find("halloween",1,true) and Color3.fromRGB(255,164,56) or Color3.fromRGB(91,199,255),true)
+        Color3.fromRGB(91,199,255),true)
       info.ZIndex=19
       local locate=btn(row,"STEAL",333,15,109,46,Color3.fromRGB(46,233,20))
       locate.ZIndex=20

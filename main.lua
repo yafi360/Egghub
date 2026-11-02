@@ -1015,33 +1015,45 @@ local running=false
 local function refreshFinder()
   if running then return end
   running=true
-  if not remote or not remote.Parent then
-    remote=RS:FindFirstChild("RF/EggWorld/AskFieldEggSnapshot",true)
+  -- Prefer the replicated client EggState used by an open-source working farm.
+  -- Unlike a remote InvokeServer, this reads the locally maintained egg records.
+  countLabel.Text="Reading client EggState..."
+  local result=nil
+  local source=nil
+  local client=RS:FindFirstChild("Client")
+  local eggStateModule=client and client:FindFirstChild("EggState")
+  if eggStateModule and eggStateModule:IsA("ModuleScript") then
+    local ok,state=pcall(require,eggStateModule)
+    if ok and type(state)=="table" and type(state.ReadFieldEggs)=="function" then
+      local readOk,readResult=pcall(state.ReadFieldEggs)
+      if readOk and type(readResult)=="table" and type(readResult.Records)=="table" then
+        result=readResult
+        source="client"
+      end
+    end
   end
-  if not remote or not remote:IsA("RemoteFunction") then
-    lastStatus="Egg snapshot unavailable"
-    latest={}
-    renderFinder()
-    running=false
-    return
+  if not result then
+    countLabel.Text="Client data unavailable; checking server snapshot..."
+    if not remote or not remote.Parent then
+      remote=RS:FindFirstChild("RF/EggWorld/AskFieldEggSnapshot",true)
+    end
+    if remote and remote:IsA("RemoteFunction") then
+      local done=false
+      local ok,reply=false,nil
+      task.spawn(function()
+        ok,reply=pcall(function() return remote:InvokeServer() end)
+        done=true
+      end)
+      local started=os.clock()
+      while not done and os.clock()-started<8 and gui.Parent do task.wait(.1) end
+      if done and ok and type(reply)=="table" and type(reply.Records)=="table" then
+        result=reply
+        source="server"
+      end
+    end
   end
-  countLabel.Text="Reading current server eggs..."
-  local done=false
-  local ok,result=false,nil
-  task.spawn(function()
-    ok,result=pcall(function() return remote:InvokeServer() end)
-    done=true
-  end)
-  local started=os.clock()
-  while not done and os.clock()-started<8 and gui.Parent do task.wait(.1) end
-  if not done then
-    lastStatus="Snapshot timed out (8s) - retry or rejoin server"
-    countLabel.Text=lastStatus
-    running=false
-    return
-  end
-  if not ok or type(result)~="table" or type(result.Records)~="table" then
-    lastStatus="Unable to read server eggs"
+  if not result then
+    lastStatus="No egg records from client or server (game may have updated)"
     latest={}
     renderFinder()
     running=false
@@ -1068,7 +1080,7 @@ local function refreshFinder()
     return a.name<b.name
   end)
   latest=eggs
-  lastStatus=string.format("%d eggs | estimates where available",#eggs)
+  lastStatus=string.format("%d eggs (%s) | estimates where available",#eggs,source or "unknown")
   renderFinder()
   running=false
 end

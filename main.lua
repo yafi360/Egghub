@@ -1025,7 +1025,21 @@ local function refreshFinder()
     running=false
     return
   end
-  local ok,result=pcall(function() return remote:InvokeServer() end)
+  countLabel.Text="Reading current server eggs..."
+  local done=false
+  local ok,result=false,nil
+  task.spawn(function()
+    ok,result=pcall(function() return remote:InvokeServer() end)
+    done=true
+  end)
+  local started=os.clock()
+  while not done and os.clock()-started<8 and gui.Parent do task.wait(.1) end
+  if not done then
+    lastStatus="Snapshot timed out (8s) - retry or rejoin server"
+    countLabel.Text=lastStatus
+    running=false
+    return
+  end
   if not ok or type(result)~="table" or type(result.Records)~="table" then
     lastStatus="Unable to read server eggs"
     latest={}

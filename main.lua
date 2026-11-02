@@ -70,22 +70,22 @@ round(orb,11)
 grad(orb,P.cyan,P.blue,45)
 txt(orb,"Y",11,3,18,28,20,P.text,true)
 txt(top,"YAFI / EGG HUB",60,9,252,27,17,P.text,true)
-txt(top,"NEON BLUE    •    V4.0",61,34,240,17,10,P.cyan,true)
+txt(top,"CHILLI-STYLE LAYOUT  •  BLUE",61,34,240,17,10,P.cyan,true)
 local minimize=btn(top,"—",363,14,29,29,P.panel)
 local close=btn(top,"×",400,14,29,29,Color3.fromRGB(85,43,76))
 close.TextSize=20
 
+-- Chilli-inspired layout, original Yafi branding and neon-blue theme.
 local sidebar=ui("Frame",main,{Position=UDim2.fromOffset(9,68),Size=UDim2.fromOffset(111,229),
   BackgroundColor3=P.navy,BorderSizePixel=0})
 round(sidebar,12)
 local tabButtons={}
-for i,item in ipairs({{"HOME","⌂"},{"TOOLS","✦"},{"SETTINGS","⚙"},{"ABOUT","?"}}) do
-  local b=btn(sidebar,item[2].."  "..item[1],8,10+(i-1)*46,95,39,P.navy)
-  b.TextSize=12
-  tabButtons[item[1]]=b
+local tabNames={"FARM","PLAYER","PREDICTOR","PROGRESS","SERVER","MISC","AUTO HOP"}
+for i,name in ipairs(tabNames) do
+  local b=btn(sidebar,name,6,6+(i-1)*31,99,28,P.navy)
+  b.TextSize=10
+  tabButtons[name]=b
 end
-txt(sidebar,"YAFI  •  2026",14,204,90,15,9,P.muted,true)
-
 local content=ui("Frame",main,{Position=UDim2.fromOffset(129,68),Size=UDim2.fromOffset(306,229),
   BackgroundColor3=P.navy,BorderSizePixel=0})
 round(content,12)
@@ -97,11 +97,22 @@ local function page(name)
   pages[name]=f
   return f
 end
-local home=page("HOME")
-local tools=page("TOOLS")
-local settings=page("SETTINGS")
-local about=page("ABOUT")
-
+local home=page("FARM")
+local tools=page("PREDICTOR")
+local settings=page("MISC")
+local about=page("PROGRESS")
+local playerPage=page("PLAYER")
+local serverPage=page("SERVER")
+local hopPage=page("AUTO HOP")
+txt(playerPage,"PLAYER",17,13,270,26,17,P.cyan,true)
+txt(playerPage,"Movement is manual by default.",17,49,270,24,12,P.muted)
+txt(playerPage,"No automatic movement enabled.",17,82,270,24,11,P.text)
+txt(serverPage,"SERVER BROWSER",17,13,270,26,17,P.cyan,true)
+txt(serverPage,"Find joinable Roblox servers.",17,48,270,25,12,P.muted)
+local openServers=btn(serverPage,"OPEN SERVER HUNTER",16,92,273,42,P.blue)
+txt(hopPage,"AUTO HOP",17,13,270,26,17,P.cyan,true)
+txt(hopPage,"Manual server selection only.",17,48,270,25,12,P.muted)
+local openHop=btn(hopPage,"BROWSE SERVERS",16,92,273,42,P.blue)
 txt(home,"YOUR COMMAND DECK",17,16,272,25,16,P.text,true)
 txt(home,"A little blue energy for your game.",17,44,270,20,11,P.muted,false)
 local hero=ui("Frame",home,{Position=UDim2.fromOffset(15,76),Size=UDim2.fromOffset(276,91),
@@ -1190,6 +1201,8 @@ txt(about,"EGG HUB  •  VERSION 4.0",17,55,274,22,12,P.cyan,true)
 txt(about,"Built as a custom Roblox interface.",17,95,273,23,12,P.muted)
 txt(about,"Blue arcade style. Clean and compact.",17,125,278,23,12,P.muted)
 
+openServers.MouseButton1Click:Connect(function() setFinderOpen(true) showHunter(true) fetchServers() end)
+openHop.MouseButton1Click:Connect(function() setFinderOpen(true) showHunter(true) fetchServers() end)
 local function selectTab(name)
   for key,p in pairs(pages) do
     p.Visible=(key==name)
@@ -1199,7 +1212,7 @@ end
 for name,b in pairs(tabButtons) do
   b.MouseButton1Click:Connect(function() selectTab(name) end)
 end
-selectTab("HOME")
+selectTab("FARM")
 
 local reopen=btn(gui,"Y",18,175,45,45,P.blue)
 reopen.Visible=false

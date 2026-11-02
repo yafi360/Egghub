@@ -1017,7 +1017,7 @@ local function refreshFinder()
   running=true
   -- Prefer the replicated client EggState used by an open-source working farm.
   -- Unlike a remote InvokeServer, this reads the locally maintained egg records.
-  countLabel.Text="Reading client EggState..."
+  countLabel.Text="Reading live eggs from client..."
   local result=nil
   local source=nil
   local client=RS:FindFirstChild("Client")
@@ -1025,7 +1025,7 @@ local function refreshFinder()
   if eggStateModule and eggStateModule:IsA("ModuleScript") then
     local ok,state=pcall(require,eggStateModule)
     if ok and type(state)=="table" and type(state.ReadFieldEggs)=="function" then
-      local readOk,readResult=pcall(state.ReadFieldEggs)
+      local readOk,readResult=pcall(function() return state.ReadFieldEggs() end)
       if readOk and type(readResult)=="table" and type(readResult.Records)=="table" then
         result=readResult
         source="client"

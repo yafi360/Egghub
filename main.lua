@@ -697,7 +697,17 @@ end)
 
 -- AUTO TREADMILL: use the assigned plot and ordinary movement/prompt input.
 -- No guessed training remotes, speed changes, or teleporting.
-local treadmillButton=btn(tools,"AUTO TREADMILL: OFF",16,166,274,35,P.panel)
+local treadmillButton=btn(tools,"TREADMILL: OFF",16,166,132,35,P.panel)
+treadmillButton.TextSize=11
+local eggPriority=true
+local priorityButton=btn(tools,"EGG PRIORITY: ON",158,166,132,35,P.blue)
+priorityButton.TextSize=11
+priorityButton.MouseButton1Click:Connect(function()
+  eggPriority=not eggPriority
+  priorityButton.Text=eggPriority and "EGG PRIORITY: ON" or "EGG PRIORITY: OFF"
+  priorityButton.BackgroundColor3=eggPriority and P.blue or P.panel
+end)
+local treadmillEggBaseline=nil
 local treadmillStatus=txt(tools,"Walks to your plot's treadmill.",17,205,274,18,10,P.muted)
 local treadmillEnabled=false
 local treadmillRun=0
@@ -706,7 +716,7 @@ local treadmillPrompt=nil
 local function stopTreadmill(message)
   treadmillEnabled=false
   treadmillRun=treadmillRun+1
-  treadmillButton.Text="AUTO TREADMILL: OFF"
+  treadmillButton.Text="TREADMILL: OFF"
   treadmillButton.BackgroundColor3=P.panel
   if treadmillPrompt then
     pcall(function() treadmillPrompt:InputHoldEnd() end)
@@ -788,9 +798,10 @@ treadmillButton.MouseButton1Click:Connect(function()
   if treadmillEnabled then stopTreadmill("Stopped. Move or jump to leave training.") return end
   if _G.YafiPickupBusy then treadmillStatus.Text="Finish egg pickup first." return end
   treadmillEnabled=true
+  treadmillEggBaseline=nil
   treadmillRun=treadmillRun+1
   local token=treadmillRun
-  treadmillButton.Text="AUTO TREADMILL: ON"
+  treadmillButton.Text="TREADMILL: ON"
   treadmillButton.BackgroundColor3=P.blue
   treadmillStatus.Text="Finding your treadmill..."
   task.spawn(function()
@@ -1224,6 +1235,37 @@ local function refreshFinder()
     if a.scale~=b.scale then return a.scale>b.scale end
     return a.name<b.name
   end)
+  -- A first snapshot establishes a baseline; only new matching UIDs interrupt.
+  if treadmillEnabled then
+    local seen={}
+    local priorityEgg=nil
+    local query=normalize(petSearch.Text)
+    local minimum=incomeNum(minIncome.Text) or tonumber(minIncome.Text) or 0
+    for _,egg in ipairs(eggs) do
+      local raw=egg.raw or {}
+      local id=tostring(raw.Uid or raw.UID or raw.uid or egg.recordId)
+      seen[id]=true
+      local available=raw.State==nil or raw.State=="Slot"
+      local value=egg.income or egg.base
+      if eggPriority and treadmillEggBaseline and not treadmillEggBaseline[id]
+        and available and not priorityEgg
+        and (query=="" or normalize(egg.name):find(query,1,true))
+        and (minimum==0 or (value and value>=minimum)) then
+        priorityEgg=egg
+      end
+    end
+    treadmillEggBaseline=seen
+    if priorityEgg then
+      local hum=treadmillHumanoid
+      stopTreadmill("Egg priority: "..priorityEgg.name)
+      if hum and hum.Parent and hum.Health>0 then
+        pcall(function() hum.Jump=true end)
+      end
+      finder.Visible=true
+      eggLauncher.Visible=false
+      showHunter(false)
+    end
+  end
   latest=eggs
   lastStatus=string.format("%d eggs | estimates where available",#eggs)
   renderFinder()
@@ -1249,7 +1291,7 @@ refreshBtn.MouseButton1Click:Connect(function() task.spawn(refreshFinder) end)
 task.spawn(function()
   fetchDatabase()
   while gui.Parent do
-    if finder.Visible then refreshFinder() end
+    if finder.Visible or treadmillEnabled then refreshFinder() end
     task.wait(5)
   end
 end)

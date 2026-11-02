@@ -300,16 +300,16 @@ end)
 -- An expanded overlay preserves the V4 hub's compact navigation.
 local finder=ui("Frame",gui,{Name="EggFinder",AnchorPoint=Vector2.new(1,0),
   Position=UDim2.new(1,-56,0,100),Size=UDim2.fromOffset(490,510),
-  BackgroundColor3=Color3.fromRGB(31,35,58),BorderSizePixel=0,Visible=false,ZIndex=15})
+  BackgroundColor3=P.deep,BorderSizePixel=0,Visible=false,ZIndex=15})
 round(finder,17)
-line(finder,Color3.fromRGB(167,170,216),3)
+line(finder,P.cyan,3)
 ui("UIScale",finder,{Scale=.76})
-local titleBar=ui("Frame",finder,{Size=UDim2.new(1,0,0,42),BackgroundColor3=Color3.fromRGB(61,64,100),BorderSizePixel=0,ZIndex=16})
+local titleBar=ui("Frame",finder,{Size=UDim2.new(1,0,0,42),BackgroundColor3=P.navy,BorderSizePixel=0,ZIndex=16})
 round(titleBar,16)
 txt(titleBar,"STEAL PANEL  /  YAFI",17,6,360,29,20,P.text,true).ZIndex=17
 -- Red edge arrow: open panel when collapsed, hide when expanded.
 -- Child of finder: the arrow moves and scales with the panel.
-local finderTab=btn(finder,"<",-37,296,46,46,Color3.fromRGB(218,34,40))
+local finderTab=btn(finder,"<",-37,296,46,46,P.blue)
 finderTab.Name="FinderEdgeTab"
 finderTab.Font=Enum.Font.GothamBlack
 finderTab.TextSize=29
@@ -338,7 +338,7 @@ ui("UIPadding",minIncome,{PaddingLeft=UDim.new(0,9)})
 local refreshBtn=btn(finder,"↻",424,119,50,35,P.blue)
 refreshBtn.ZIndex=16
 local list=ui("ScrollingFrame",finder,{Position=UDim2.fromOffset(15,164),
-  Size=UDim2.fromOffset(460,328),BackgroundColor3=Color3.fromRGB(33,36,61),
+  Size=UDim2.fromOffset(460,328),BackgroundColor3=P.navy,
   BorderSizePixel=0,ScrollBarThickness=5,CanvasSize=UDim2.fromOffset(0,0),
   ZIndex=16})
 round(list,10)
@@ -713,25 +713,25 @@ local function renderFinder()
       shown=shown+1
       local row=ui("Frame",list,{
         Size=UDim2.new(1,-8,0,78),
-        BackgroundColor3=shown%2==0 and Color3.fromRGB(72,75,100) or Color3.fromRGB(63,67,94),
+        BackgroundColor3=shown%2==0 and P.panel or P.navy,
         BorderSizePixel=0,LayoutOrder=shown,ZIndex=17})
       round(row,7)
-      line(row,Color3.fromRGB(173,177,208),1.7)
+      line(row,P.line,1.7)
       local iconBack=ui("Frame",row,{Position=UDim2.fromOffset(4,5),
-        Size=UDim2.fromOffset(67,67),BackgroundColor3=Color3.fromRGB(123,127,164),
+        Size=UDim2.fromOffset(67,67),BackgroundColor3=P.panel,
         BorderSizePixel=0,ZIndex=18})
       round(iconBack,6)
-      grad(iconBack,Color3.fromRGB(209,210,235),Color3.fromRGB(72,79,124),45)
+      grad(iconBack,P.cyan,P.blue,45)
       ui("ImageLabel",iconBack,{
         Position=UDim2.fromOffset(4,4),Size=UDim2.fromOffset(59,59),
         BackgroundTransparency=1,ScaleType=Enum.ScaleType.Fit,
         Image=iconId(egg.icon),ZIndex=19})
       local label=txt(row,egg.name,78,6,245,26,18,
-        Color3.fromRGB(255,100,88),true)
+        P.text,true)
       label.ZIndex=19
       label.Font=Enum.Font.GothamBlack
-      local earnings=txt(row,(egg.income and "EST. " or "BASE ")..money(value).."/s",
-        78,30,245,23,18,Color3.fromRGB(85,255,84),true)
+      local earnings=txt(row,(egg.income and "EST. " or "BASE ")..money(value),
+        78,30,245,23,18,P.green,true)
       earnings.Font=Enum.Font.GothamBlack
       earnings.ZIndex=19
       local info=txt(row,string.format("x%.2f  •  %s",egg.scale,tostring(egg.mutation)),
@@ -1109,7 +1109,7 @@ local function refreshFinder()
       local name=tostring(egg.AssetCategory or "Unknown")
       local def=type(assets)=="table" and assets[name] or nil
       local gameBase=type(def)=="table" and tonumber(def.EarningRate) or nil
-      local recordId=egg.Id or egg.ID or egg.EggId or egg.EggID or egg.Guid or egg.GUID or recordKey
+      local recordId=egg.Uid or egg.UID or egg.Id or egg.ID or egg.EggId or egg.EggID or egg.Guid or egg.GUID or recordKey
       table.insert(eggs,{raw=egg,recordKey=tostring(recordKey),recordId=tostring(recordId),name=name,mutation=tostring(egg.BaseMutation or "None"),
         scale=tonumber(egg.AssetScale) or 1,base=gameBase or database[normalize(name)],
         income=earned(egg,gameBase),icon=type(def)=="table" and def.Icon or nil,

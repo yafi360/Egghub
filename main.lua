@@ -1075,12 +1075,25 @@ finderClose.MouseButton1Click:Connect(function() setFinderOpen(false) end)
 petSearch:GetPropertyChangedSignal("Text"):Connect(renderFinder)
 minIncome:GetPropertyChangedSignal("Text"):Connect(renderFinder)
 refreshBtn.MouseButton1Click:Connect(function() task.spawn(refreshFinder) end)
+-- Start the live snapshot scanner independently of the optional website.
 task.spawn(function()
-  fetchDatabase()
   while gui.Parent do
-    if finder.Visible then refreshFinder() end
+    if finder.Visible then
+      local ok,err=pcall(refreshFinder)
+      if not ok then
+        running=false
+        lastStatus="Scanner error: "..tostring(err):sub(1,90)
+        countLabel.Text=lastStatus
+        warn("[Yafi Egg Hub]",err)
+      end
+    end
     task.wait(5)
   end
+end)
+-- External index is optional and must never block live egg scanning.
+task.spawn(function()
+  local ok,err=pcall(fetchDatabase)
+  if not ok then warn("[Yafi Egg Hub] Optional index:",err) end
 end)
 
 _G.YafiTeleportMode=false

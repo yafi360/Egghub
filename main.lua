@@ -1043,6 +1043,15 @@ local function refreshFinder()
         clientFailure="ReadFieldEggs missing"
         return
       end
+      -- A fresh client can have an empty cache until the first field sync.
+      -- SyncFieldEggs is the game's own snapshot initializer (v617 client).
+      if type(state.HasFieldSnapshot)=="function" and type(state.SyncFieldEggs)=="function" then
+        local hasOk,hasSnapshot=pcall(state.HasFieldSnapshot)
+        if hasOk and not hasSnapshot then
+          local syncOk,syncErr=pcall(state.SyncFieldEggs)
+          if not syncOk then clientFailure="sync failed: "..tostring(syncErr):sub(1,60) end
+        end
+      end
       local readOk,snapshot=pcall(function() return state.ReadFieldEggs() end)
       if not readOk then
         clientFailure="read failed: "..tostring(snapshot):sub(1,60)

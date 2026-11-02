@@ -1020,20 +1020,51 @@ local function refreshFinder()
   countLabel.Text="Reading live eggs from client..."
   local result=nil
   local source=nil
-  local client=RS:FindFirstChild("Client")
-  local eggStateModule=client and client:FindFirstChild("EggState")
-  if eggStateModule and eggStateModule:IsA("ModuleScript") then
-    local ok,state=pcall(require,eggStateModule)
-    if ok and type(state)=="table" and type(state.ReadFieldEggs)=="function" then
-      local readOk,readResult=pcall(function() return state.ReadFieldEggs() end)
-      if readOk and type(readResult)=="table" and type(readResult.Records)=="table" then
-        result=readResult
-        source="client"
+  local failure="unknown"
+  -- The client require/read can yield indefinitely. Run it in a worker
+  -- so the UI stays responsive and a stale worker cannot overwrite results.
+  local clientDone=false
+  local clientResult=nil
+  local clientFailure="unknown"
+  task.spawn(function()
+    local ok,err=pcall(function()
+      local client=RS:FindFirstChild("Client")
+      local module=client and client:FindFirstChild("EggState")
+      if not module or not module:IsA("ModuleScript") then
+        clientFailure="Client.EggState missing"
+        return
       end
-    end
+      local loaded,state=pcall(require,module)
+      if not loaded then
+        clientFailure="require failed: "..tostring(state):sub(1,60)
+        return
+      end
+      if type(state)~="table" or type(state.ReadFieldEggs)~="function" then
+        clientFailure="ReadFieldEggs missing"
+        return
+      end
+      local readOk,snapshot=pcall(function() return state.ReadFieldEggs() end)
+      if not readOk then
+        clientFailure="read failed: "..tostring(snapshot):sub(1,60)
+      elseif type(snapshot)=="table" and type(snapshot.Records)=="table" then
+        clientResult=snapshot
+      else
+        clientFailure="snapshot missing Records"
+      end
+    end)
+    if not ok then clientFailure="client error: "..tostring(err):sub(1,60) end
+    clientDone=true
+  end)
+  local clientStarted=os.clock()
+  while not clientDone and os.clock()-clientStarted<3 and gui.Parent do task.wait(.1) end
+  if clientDone and clientResult then
+    result=clientResult
+    source="client"
+  else
+    failure=clientDone and clientFailure or "client read timed out"
   end
   if not result then
-    countLabel.Text="Client data unavailable; checking server snapshot..."
+    countLabel.Text="Client: "..failure.." | trying server..."
     if not remote or not remote.Parent then
       remote=RS:FindFirstChild("RF/EggWorld/AskFieldEggSnapshot",true)
     end
@@ -1045,15 +1076,19 @@ local function refreshFinder()
         done=true
       end)
       local started=os.clock()
-      while not done and os.clock()-started<8 and gui.Parent do task.wait(.1) end
+      while not done and os.clock()-started<4 and gui.Parent do task.wait(.1) end
       if done and ok and type(reply)=="table" and type(reply.Records)=="table" then
         result=reply
         source="server"
+      else
+        failure=failure.." | server: "..(not done and "timeout" or not ok and "invoke failed" or "no Records")
       end
+    else
+      failure=failure.." | server remote missing"
     end
   end
   if not result then
-    lastStatus="No egg records from client or server (game may have updated)"
+    lastStatus=failure
     latest={}
     renderFinder()
     running=false

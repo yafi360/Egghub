@@ -694,6 +694,176 @@ UIS.InputBegan:Connect(function(input,processed)
   cancelTrip()
  end
 end)
+
+-- AUTO TREADMILL: use the assigned plot and ordinary movement/prompt input.
+-- No guessed training remotes, speed changes, or teleporting.
+local treadmillButton=btn(tools,"AUTO TREADMILL: OFF",16,166,274,35,P.panel)
+local treadmillStatus=txt(tools,"Walks to your plot's treadmill.",17,205,274,18,10,P.muted)
+local treadmillEnabled=false
+local treadmillRun=0
+local treadmillHumanoid=nil
+local treadmillPrompt=nil
+local function stopTreadmill(message)
+  treadmillEnabled=false
+  treadmillRun=treadmillRun+1
+  treadmillButton.Text="AUTO TREADMILL: OFF"
+  treadmillButton.BackgroundColor3=P.panel
+  if treadmillPrompt then
+    pcall(function() treadmillPrompt:InputHoldEnd() end)
+    treadmillPrompt=nil
+  end
+  local hum=treadmillHumanoid
+  treadmillHumanoid=nil
+  if hum and hum.Parent then
+    local root=hum.Parent:FindFirstChild("HumanoidRootPart")
+    if root then pcall(function() hum:MoveTo(root.Position) end) end
+  end
+  if gui.Parent then treadmillStatus.Text=message or "Stopped." end
+end
+local function ownTreadmillPlot()
+  local plots=workspace:FindFirstChild("Plots")
+  if not plots then return nil end
+  local stateRemote=RS:FindFirstChild("RF/Homestead/AskState",true)
+  if stateRemote and stateRemote:IsA("RemoteFunction") then
+    local ok,state=pcall(function() return stateRemote:InvokeServer() end)
+    if ok and type(state)=="table" and type(state.OwnersBySlot)=="table" then
+      for slot,owner in pairs(state.OwnersBySlot) do
+        if tonumber(owner)==player.UserId then
+          return plots:FindFirstChild(tostring(slot))
+        end
+      end
+    end
+  end
+  for _,plot in ipairs(plots:GetChildren()) do
+    local sign=plot:FindFirstChild("PlotSign")
+    if sign then
+      for _,label in ipairs(sign:GetDescendants()) do
+        if label:IsA("TextLabel") and label.Text==player.Name then return plot end
+      end
+    end
+  end
+end
+local function findTreadmill(plot)
+  local machines={}
+  for _,obj in ipairs(plot:GetDescendants()) do
+    if (obj:IsA("Model") or obj:IsA("BasePart"))
+      and obj.Name:lower():find("treadmill",1,true) then
+      local ancestor=obj.Parent
+      local nested=false
+      while ancestor and ancestor~=plot do
+        if ancestor.Name:lower():find("treadmill",1,true) then nested=true break end
+        ancestor=ancestor.Parent
+      end
+      if not nested then machines[#machines+1]=obj end
+    end
+  end
+  if #machines~=1 then
+    return nil,nil,"Cannot identify one treadmill on your plot."
+  end
+  local machine=machines[1]
+  local prompts={}
+  for _,obj in ipairs(machine:GetDescendants()) do
+    if obj:IsA("ProximityPrompt") and obj.Enabled then
+      local action=obj.ActionText:lower()
+      if not action:find("buy",1,true) and not action:find("upgrade",1,true)
+        and (action:find("train",1,true) or action:find("run",1,true)
+          or action:find("use",1,true) or obj.Name:lower():find("train",1,true)) then
+        prompts[#prompts+1]=obj
+      end
+    end
+  end
+  if #prompts~=1 then
+    return nil,nil,"Training prompt not identified; no action sent."
+  end
+  local prompt=prompts[1]
+  local holder=prompt.Parent
+  local position
+  if holder and holder:IsA("Attachment") then position=holder.WorldPosition
+  elseif holder and holder:IsA("BasePart") then position=holder.Position
+  elseif holder and holder:IsA("Model") then position=holder:GetPivot().Position end
+  if not position then return nil,nil,"Treadmill prompt has no position." end
+  return prompt,position
+end
+treadmillButton.MouseButton1Click:Connect(function()
+  if treadmillEnabled then stopTreadmill("Stopped. Move or jump to leave training.") return end
+  if _G.YafiPickupBusy then treadmillStatus.Text="Finish egg pickup first." return end
+  treadmillEnabled=true
+  treadmillRun=treadmillRun+1
+  local token=treadmillRun
+  treadmillButton.Text="AUTO TREADMILL: ON"
+  treadmillButton.BackgroundColor3=P.blue
+  treadmillStatus.Text="Finding your treadmill..."
+  task.spawn(function()
+    local function active()
+      return gui.Parent and treadmillEnabled and token==treadmillRun
+    end
+    local ok,err=pcall(function()
+      local plot=ownTreadmillPlot()
+      if not active() then return end
+      if not plot then stopTreadmill("Your plot could not be identified.") return end
+      local prompt,position,reason=findTreadmill(plot)
+      if not prompt then stopTreadmill(reason) return end
+      local character=player.Character
+      local hum=character and character:FindFirstChildWhichIsA("Humanoid")
+      local root=character and character:FindFirstChild("HumanoidRootPart")
+      if not hum or not root or hum.Health<=0 then stopTreadmill("Character not ready.") return end
+      treadmillHumanoid=hum
+      local deadline=os.clock()+35
+      local previousPosition=root.Position
+      local lastProgress=os.clock()
+      treadmillStatus.Text="Walking to your treadmill..."
+      while active() do
+        if _G.YafiPickupBusy then stopTreadmill("Paused for egg pickup.") return end
+        if not root.Parent or not hum.Parent or hum.Health<=0
+          or not prompt.Parent or not prompt.Enabled then stopTreadmill("Treadmill or character unavailable.") return end
+        if (root.Position-position).Magnitude<=math.max(1,prompt.MaxActivationDistance-.5) then break end
+        if os.clock()>deadline then stopTreadmill("Could not reach treadmill.") return end
+        if (root.Position-previousPosition).Magnitude>=1 then
+          previousPosition=root.Position
+          lastProgress=os.clock()
+        elseif os.clock()-lastProgress>7 then stopTreadmill("Path blocked; stopped.") return end
+        hum:MoveTo(position)
+        task.wait(.3)
+      end
+      if not active() then return end
+      hum:MoveTo(root.Position)
+      treadmillStatus.Text="Activating training prompt..."
+      treadmillPrompt=prompt
+      prompt:InputHoldBegin()
+      local holdUntil=os.clock()+math.max(.15,prompt.HoldDuration)
+      while active() and os.clock()<holdUntil do task.wait(.05) end
+      if not active() then return end
+      prompt:InputHoldEnd()
+      treadmillPrompt=nil
+      treadmillStatus.Text="Prompt attempted; verify speed increases."
+      -- Do not repeatedly fire an unconfirmed action or re-enter after manual exit.
+      while active() do
+        if _G.YafiPickupBusy or player.Character~=character or hum.Health<=0
+          or not root.Parent or not prompt.Parent then
+          stopTreadmill("Training helper stopped.") return
+        end
+        task.wait(.5)
+      end
+    end)
+    if not ok and token==treadmillRun then
+      stopTreadmill("Training error: "..tostring(err):sub(1,65))
+    end
+  end)
+end)
+UIS.InputBegan:Connect(function(input)
+  if not treadmillEnabled or UIS:GetFocusedTextBox() then return end
+  local key=input.KeyCode
+  if key==Enum.KeyCode.W or key==Enum.KeyCode.A or key==Enum.KeyCode.S
+    or key==Enum.KeyCode.D or key==Enum.KeyCode.Up or key==Enum.KeyCode.Down
+    or key==Enum.KeyCode.Left or key==Enum.KeyCode.Right or key==Enum.KeyCode.Space then
+    stopTreadmill("Manual movement; helper stopped.")
+  end
+end)
+player.CharacterRemoving:Connect(function()
+  if treadmillEnabled then stopTreadmill("Respawned; toggle on when ready.") end
+end)
+gui.Destroying:Connect(function() stopTreadmill() end)
+
 local remote
 latest={}
 local lastStatus=""
@@ -748,6 +918,7 @@ local function renderFinder()
       locate.TextSize=18
       locate.Font=Enum.Font.GothamBlack
       local function triggerSteal()
+        if treadmillEnabled then stopTreadmill("Stopped for egg pickup.") end
         if _G.YafiPickupBusy then
           countLabel.Text="A pickup test is already running"
           return
